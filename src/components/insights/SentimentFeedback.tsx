@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 interface JournalEntry {
   id: number;
   content: string;
-  mood?: string;
+  sentiment_score?: number;
   created_at: string;
 }
 
@@ -33,8 +33,8 @@ const SentimentFeedback = () => {
 
     try {
       const { data, error } = await supabase
-        .from('journal_entries')
-        .select('id, content, mood, created_at')
+        .from('journals')
+        .select('id, content, sentiment_score, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(7);
@@ -62,10 +62,10 @@ const SentimentFeedback = () => {
       return suggestions;
     }
 
-    // Analyze mood patterns
-    const moods = entries.filter(e => e.mood).map(e => e.mood);
-    const positiveMoods = moods.filter(m => ['happy', 'excited', 'grateful', 'peaceful'].includes(m || ''));
-    const negativeMoods = moods.filter(m => ['sad', 'anxious', 'frustrated', 'angry'].includes(m || ''));
+    // Analyze sentiment patterns using sentiment_score
+    const sentimentScores = entries.filter(e => e.sentiment_score !== null && e.sentiment_score !== undefined).map(e => e.sentiment_score!);
+    const positiveEntries = sentimentScores.filter(score => score > 0.1);
+    const negativeEntries = sentimentScores.filter(score => score < -0.1);
 
     // Check writing consistency
     const daysWritten = new Set(entries.map(e => new Date(e.created_at).toDateString())).size;
@@ -97,7 +97,7 @@ const SentimentFeedback = () => {
     }
 
     // Analyze sentiment trends
-    if (positiveMoods.length > negativeMoods.length) {
+    if (positiveEntries.length > negativeEntries.length) {
       suggestions.push({
         type: 'positive',
         title: 'Positive Mindset',
@@ -105,7 +105,7 @@ const SentimentFeedback = () => {
         action: 'Share your gratitude',
         icon: Heart
       });
-    } else if (negativeMoods.length > positiveMoods.length) {
+    } else if (negativeEntries.length > positiveEntries.length) {
       suggestions.push({
         type: 'concern',
         title: 'Emotional Support',
@@ -116,7 +116,7 @@ const SentimentFeedback = () => {
     }
 
     // Content-based suggestions
-    const combinedContent = entries.map(e => e.content.toLowerCase()).join(' ');
+    const combinedContent = entries.map(e => e.content?.toLowerCase() || '').join(' ');
     
     if (combinedContent.includes('stress') || combinedContent.includes('overwhelm')) {
       suggestions.push({
