@@ -7,6 +7,7 @@ import TrendAnalysis from '@/components/insights/TrendAnalysis';
 import ActivityCounters from '@/components/insights/ActivityCounters';
 import GamificationPanel from '@/components/insights/GamificationPanel';
 import AchievementNotification from '@/components/insights/AchievementNotification';
+import GoalsList from '@/components/GoalsList';
 import { useUserStats } from '@/hooks/useUserStats';
 import { useAchievements } from '@/hooks/useAchievements';
 
@@ -36,6 +37,11 @@ const Insights = () => {
 
           {/* Activity Counters */}
           <ActivityCounters />
+
+          {/* Goals Management */}
+          <div className="bg-white rounded-lg p-6">
+            <GoalsList />
+          </div>
 
           {/* Trend Analysis */}
           <TrendAnalysis />

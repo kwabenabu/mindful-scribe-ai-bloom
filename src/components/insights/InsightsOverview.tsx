@@ -1,31 +1,34 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { useUserStats } from '@/hooks/useUserStats';
 
 const InsightsOverview = () => {
+  const userStats = useUserStats();
+
   const metrics = [
     { 
       label: 'JOURNAL', 
-      value: 74, 
+      value: userStats.weeklyConsistency, 
       color: 'text-cyan-400',
       progressColor: 'bg-cyan-400',
-      description: 'Weekly entries'
+      description: 'Weekly consistency'
     },
     { 
       label: 'GOALS', 
-      value: 85, 
+      value: userStats.goalsCompletionRate || 0, 
       color: 'text-green-400',
       progressColor: 'bg-green-400',
       description: 'Completion rate'
     },
     { 
-      label: 'HABITS', 
-      value: 14.2, 
+      label: 'STREAK', 
+      value: userStats.currentStreak, 
       color: 'text-blue-400',
       progressColor: 'bg-blue-400',
-      description: 'Average score',
-      isDecimal: true
+      description: 'Current days',
+      isDecimal: true,
+      maxValue: Math.max(userStats.longestStreak, 30)
     }
   ];
 
@@ -54,7 +57,9 @@ const InsightsOverview = () => {
                     strokeWidth="8"
                     fill="transparent"
                     strokeDasharray={`${2 * Math.PI * 40}`}
-                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - (metric.isDecimal ? metric.value / 20 : metric.value / 100))}`}
+                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - (metric.isDecimal ? 
+                      metric.value / (metric.maxValue || 20) : 
+                      metric.value / 100))}`}
                     className={metric.color}
                     strokeLinecap="round"
                   />

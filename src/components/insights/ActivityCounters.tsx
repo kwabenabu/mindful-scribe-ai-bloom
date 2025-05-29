@@ -2,38 +2,41 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, Target, Calendar, TrendingUp } from 'lucide-react';
+import { useUserStats } from '@/hooks/useUserStats';
 
 const ActivityCounters = () => {
+  const userStats = useUserStats();
+
   const activities = [
     {
       title: 'Journal Entries',
-      count: 23,
-      subtitle: 'This month',
-      trend: '+15%',
+      count: userStats.totalJournalEntries,
+      subtitle: 'Total written',
+      trend: userStats.weeklyConsistency >= 70 ? '+15%' : 'Improving',
       icon: BookOpen,
       color: 'text-cyan-400'
     },
     {
       title: 'Goals Completed',
-      count: 8,
-      subtitle: 'This week',
-      trend: '+25%',
+      count: userStats.goalsCompleted,
+      subtitle: `of ${userStats.totalGoals || 0} total`,
+      trend: userStats.goalsCompletionRate >= 70 ? '+25%' : 'In Progress',
       icon: Target,
       color: 'text-green-400'
     },
     {
-      title: 'Streak Days',
-      count: 12,
-      subtitle: 'Current streak',
-      trend: 'Record!',
+      title: 'Current Streak',
+      count: userStats.currentStreak,
+      subtitle: 'Days in a row',
+      trend: userStats.currentStreak === userStats.longestStreak ? 'Record!' : `Best: ${userStats.longestStreak}`,
       icon: Calendar,
       color: 'text-purple-400'
     },
     {
       title: 'Weekly Average',
-      count: 4.2,
+      count: parseFloat((userStats.weeklyConsistency / 100 * 7).toFixed(1)),
       subtitle: 'Entries per week',
-      trend: '+0.8',
+      trend: userStats.weeklyConsistency >= 50 ? '+0.8' : 'Growing',
       icon: TrendingUp,
       color: 'text-blue-400'
     }

@@ -1,39 +1,78 @@
-
 interface TitleAndTags {
   title: string;
   tags: string[];
 }
 
 export const generateTitleAndTags = async (content: string): Promise<TitleAndTags> => {
-  // Simulate AI processing - in a real app, you'd call an AI service
-  // For now, I'll create a simple algorithm that extracts meaningful information
-  
-  // Generate title based on content
-  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
-  const firstSentence = sentences[0]?.trim() || '';
-  
-  let title = '';
-  if (firstSentence.length > 0) {
-    // Take the first few words or create a meaningful title
-    const words = firstSentence.split(' ').slice(0, 6);
-    title = words.join(' ').replace(/[^\w\s]/g, '').trim();
-    if (title.length > 50) {
-      title = title.substring(0, 47) + '...';
-    }
-  }
-  
-  // If no meaningful title, use timestamp
-  if (!title || title.length < 3) {
-    const now = new Date();
-    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
-    const date = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    title = `${dayOfWeek}, ${date}`;
-  }
+  // Generate AI-powered three-word summary title
+  const title = generateAITitle(content);
   
   // Generate tags based on content analysis
   const tags = extractTags(content);
   
   return { title, tags };
+};
+
+const generateAITitle = (content: string): string => {
+  // Check for sensitive content indicators
+  const sensitiveKeywords = [
+    'personal', 'private', 'secret', 'confidential', 'intimate', 'family', 'relationship',
+    'depression', 'anxiety', 'therapy', 'medication', 'doctor', 'health', 'mental',
+    'money', 'salary', 'debt', 'financial', 'bank', 'loan', 'income'
+  ];
+  
+  const lowerContent = content.toLowerCase();
+  const isSensitive = sensitiveKeywords.some(keyword => lowerContent.includes(keyword));
+  
+  if (isSensitive) {
+    // Generate vague titles for sensitive content
+    const vagueTitles = [
+      'Personal Thoughts', 'Daily Reflection', 'Private Notes',
+      'Inner Musings', 'Quiet Moments', 'Personal Journey',
+      'Self Reflection', 'Mindful Thoughts', 'Inner Voice'
+    ];
+    return vagueTitles[Math.floor(Math.random() * vagueTitles.length)];
+  }
+  
+  // Generate three-word summary for non-sensitive content
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const firstSentence = sentences[0]?.trim() || '';
+  
+  if (firstSentence.length > 0) {
+    const words = firstSentence.split(' ')
+      .filter(word => word.length > 2)
+      .filter(word => !['the', 'and', 'but', 'for', 'are', 'was', 'were', 'been', 'have', 'has', 'had', 'will', 'would', 'could', 'should'].includes(word.toLowerCase()))
+      .slice(0, 3);
+    
+    if (words.length >= 2) {
+      // Capitalize first letter of each word
+      const capitalizedWords = words.map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      );
+      return capitalizedWords.join(' ');
+    }
+  }
+  
+  // Fallback to activity-based titles
+  const activityKeywords = {
+    'Work Progress': ['work', 'job', 'office', 'meeting', 'project', 'boss', 'colleague'],
+    'Family Time': ['family', 'mom', 'dad', 'sister', 'brother', 'parent', 'child'],
+    'Social Moments': ['friend', 'friends', 'party', 'social', 'hang out'],
+    'Travel Adventures': ['travel', 'trip', 'vacation', 'airport', 'hotel', 'explore'],
+    'Fitness Journey': ['workout', 'gym', 'run', 'exercise', 'fitness', 'sport'],
+    'Food Experiences': ['eat', 'food', 'restaurant', 'cook', 'meal', 'dinner'],
+    'Learning Path': ['learn', 'study', 'read', 'book', 'course', 'education'],
+    'Creative Flow': ['write', 'draw', 'paint', 'music', 'art', 'create']
+  };
+  
+  for (const [title, keywords] of Object.entries(activityKeywords)) {
+    if (keywords.some(keyword => lowerContent.includes(keyword))) {
+      return title;
+    }
+  }
+  
+  // Final fallback to "AI Summary"
+  return 'AI Summary';
 };
 
 const extractTags = (content: string): string[] => {

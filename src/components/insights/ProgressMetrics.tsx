@@ -2,24 +2,45 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Target, TrendingUp } from 'lucide-react';
+import { useUserStats } from '@/hooks/useUserStats';
 
 const ProgressMetrics = () => {
+  const userStats = useUserStats();
+
+  const getJournalStatus = () => {
+    if (userStats.weeklyConsistency >= 80) return { status: 'EXCELLENT', color: 'text-green-400', bgColor: 'bg-green-900/20' };
+    if (userStats.weeklyConsistency >= 60) return { status: 'GOOD', color: 'text-blue-400', bgColor: 'bg-blue-900/20' };
+    if (userStats.weeklyConsistency >= 40) return { status: 'MODERATE', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
+    return { status: 'NEEDS IMPROVEMENT', color: 'text-red-400', bgColor: 'bg-red-900/20' };
+  };
+
+  const getGoalStatus = () => {
+    const rate = userStats.goalsCompletionRate || 0;
+    if (rate >= 80) return { status: 'EXCELLENT', color: 'text-green-400', bgColor: 'bg-green-900/20' };
+    if (rate >= 60) return { status: 'GOOD', color: 'text-blue-400', bgColor: 'bg-blue-900/20' };
+    if (rate >= 40) return { status: 'MODERATE', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' };
+    return { status: 'NEEDS IMPROVEMENT', color: 'text-red-400', bgColor: 'bg-red-900/20' };
+  };
+
+  const journalStatus = getJournalStatus();
+  const goalStatus = getGoalStatus();
+
   const healthMetrics = [
     {
       title: 'JOURNAL MONITOR',
-      status: 'WITHIN RANGE',
-      value: '5/5 Entries',
+      status: journalStatus.status,
+      value: `${userStats.totalJournalEntries} Entries`,
       icon: CheckCircle,
-      color: 'text-green-400',
-      bgColor: 'bg-green-900/20'
+      color: journalStatus.color,
+      bgColor: journalStatus.bgColor
     },
     {
       title: 'GOAL MONITOR',
-      status: 'HIGH',
-      value: '2.5 Progress',
+      status: goalStatus.status,
+      value: `${userStats.goalsCompleted}/${userStats.totalGoals || 0} Complete`,
       icon: Target,
-      color: 'text-orange-400',
-      bgColor: 'bg-orange-900/20'
+      color: goalStatus.color,
+      bgColor: goalStatus.bgColor
     }
   ];
 
@@ -28,16 +49,17 @@ const ProgressMetrics = () => {
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-400" />
-            Optimal Progress
+            <TrendingUp className="h-5 w-5 text-green-400" />
+            Progress Overview
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-gray-300 mb-4">
-            Take advantage of your strong consistency by 
-            meeting your journal target of 15.5 entries. Your 
-            habits are signaling they can take on significant 
-            growth today.
+            {userStats.weeklyConsistency >= 70 ? (
+              `Great consistency! You've maintained ${userStats.weeklyConsistency}% weekly journal consistency and completed ${userStats.goalsCompleted} goals. Keep up the excellent work!`
+            ) : (
+              `Your current weekly consistency is ${userStats.weeklyConsistency}%. Consider setting a daily journaling reminder to improve your habit formation.`
+            )}
           </p>
         </CardContent>
       </Card>

@@ -20,6 +20,8 @@ export interface UserStats {
   weeklyConsistency: number;
   totalXP: number;
   level: number;
+  totalGoals?: number;
+  goalsCompletionRate?: number;
 }
 
 export interface NotificationData {

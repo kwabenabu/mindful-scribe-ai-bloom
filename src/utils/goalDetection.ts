@@ -14,30 +14,30 @@ export interface GoalDetectionResult {
   tasks: DetectedGoal[];
 }
 
-// Goal patterns that indicate long-term objectives
+// Enhanced goal patterns with better comma/period handling
 const GOAL_PATTERNS = [
-  // Direct goal statements
-  /(?:i want to|i'd like to|i hope to|i aim to|my goal is to|i plan to)\s+(.+?)(?:\.|$)/gi,
+  // Direct goal statements with improved splitting
+  /(?:i want to|i'd like to|i hope to|i aim to|my goal is to|i plan to)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
   // Time-based goals
-  /(?:by|within|in)\s+(?:the\s+)?(?:next\s+)?(\w+\s+(?:year|month|week)s?|january|february|march|april|may|june|july|august|september|october|november|december|\d+\s+(?:years?|months?|weeks?))\s+i\s+(?:want to|will|hope to|plan to)\s+(.+?)(?:\.|$)/gi,
+  /(?:by|within|in)\s+(?:the\s+)?(?:next\s+)?(\w+\s+(?:year|month|week)s?|january|february|march|april|may|june|july|august|september|october|november|december|\d+\s+(?:years?|months?|weeks?))\s+i\s+(?:want to|will|hope to|plan to)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
   // Frequency-based goals
-  /i\s+(?:want to|should|need to|will)\s+(.+?)\s+(?:every|each)\s+(day|week|month|year)/gi,
+  /i\s+(?:want to|should|need to|will)\s+([^,.!?]+?)\s+(?:every|each)\s+(day|week|month|year)/gi,
   // Achievement goals
-  /i\s+(?:want to|will|hope to|plan to)\s+(learn|master|become|achieve|complete|finish|read|write|build|create)\s+(.+?)(?:\.|$)/gi,
+  /i\s+(?:want to|will|hope to|plan to)\s+(learn|master|become|achieve|complete|finish|read|write|build|create)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
   // Habit formation
-  /i\s+(?:want to|should|need to|will)\s+(start|begin|develop|build)\s+(.+?)\s+(?:habit|routine)/gi,
+  /i\s+(?:want to|should|need to|will)\s+(start|begin|develop|build)\s+([^,.!?]+?)\s+(?:habit|routine)/gi,
 ];
 
-// Task patterns that indicate immediate or short-term actions
+// Enhanced task patterns with better splitting
 const TASK_PATTERNS = [
-  // Today/tomorrow tasks
-  /(?:today|tomorrow|this\s+(?:morning|afternoon|evening))\s+i\s+(?:need to|should|will|must)\s+(.+?)(?:\.|$)/gi,
+  // Today/tomorrow tasks with splitting
+  /(?:today|tomorrow|this\s+(?:morning|afternoon|evening))\s+i\s+(?:need to|should|will|must)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
   // Immediate actions
-  /i\s+(?:need to|should|must|have to)\s+(.+?)\s+(?:now|soon|asap|immediately|today)/gi,
+  /i\s+(?:need to|should|must|have to)\s+([^,.!?]+?)\s+(?:now|soon|asap|immediately|today)(?:[,.!?]|$)/gi,
   // Simple action items
-  /(?:remember to|don't forget to)\s+(.+?)(?:\.|$)/gi,
+  /(?:remember to|don't forget to)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
   // Quick tasks
-  /(?:quickly|just)\s+(?:need to|should)\s+(.+?)(?:\.|$)/gi,
+  /(?:quickly|just)\s+(?:need to|should)\s+([^,.!?]+)(?:[,.!?]|$)/gi,
 ];
 
 // Categories for goals and tasks
@@ -108,6 +108,15 @@ function calculateConfidence(text: string, type: 'goal' | 'task'): number {
   return Math.min(confidence, 1.0);
 }
 
+function splitItemsByPunctuation(text: string): string[] {
+  // Split by commas, periods, and other separators while preserving meaningful text
+  const items = text.split(/[,.;]\s*(?=\w)/)
+    .map(item => item.trim())
+    .filter(item => item.length > 3 && item.split(' ').length <= 10); // Filter out very short or very long items
+  
+  return items.length > 1 ? items : [text];
+}
+
 export function detectGoalsAndTasks(text: string): GoalDetectionResult {
   const goals: DetectedGoal[] = [];
   const tasks: DetectedGoal[] = [];
@@ -120,17 +129,22 @@ export function detectGoalsAndTasks(text: string): GoalDetectionResult {
     while ((match = regex.exec(text)) !== null) {
       const goalText = match[1] || match[2] || match[0];
       if (goalText && goalText.trim().length > 3) {
-        const goal: DetectedGoal = {
-          id: `goal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          text: goalText.trim(),
-          type: 'goal',
-          category: categorizeGoal(goalText),
-          confidence: calculateConfidence(match[0], 'goal'),
-          timeframe: extractTimeframe(match[0]),
-          startIndex: match.index || 0,
-          endIndex: (match.index || 0) + match[0].length,
-        };
-        goals.push(goal);
+        // Split by punctuation to create separate goal items
+        const splitItems = splitItemsByPunctuation(goalText.trim());
+        
+        splitItems.forEach((item, index) => {
+          const goal: DetectedGoal = {
+            id: `goal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`,
+            text: item,
+            type: 'goal',
+            category: categorizeGoal(item),
+            confidence: calculateConfidence(match[0], 'goal'),
+            timeframe: extractTimeframe(match[0]),
+            startIndex: match.index || 0,
+            endIndex: (match.index || 0) + match[0].length,
+          };
+          goals.push(goal);
+        });
       }
     }
   });
@@ -143,16 +157,21 @@ export function detectGoalsAndTasks(text: string): GoalDetectionResult {
     while ((match = regex.exec(text)) !== null) {
       const taskText = match[1] || match[0];
       if (taskText && taskText.trim().length > 3) {
-        const task: DetectedGoal = {
-          id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          text: taskText.trim(),
-          type: 'task',
-          category: categorizeGoal(taskText),
-          confidence: calculateConfidence(match[0], 'task'),
-          startIndex: match.index || 0,
-          endIndex: (match.index || 0) + match[0].length,
-        };
-        tasks.push(task);
+        // Split by punctuation to create separate task items
+        const splitItems = splitItemsByPunctuation(taskText.trim());
+        
+        splitItems.forEach((item, index) => {
+          const task: DetectedGoal = {
+            id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`,
+            text: item,
+            type: 'task',
+            category: categorizeGoal(item),
+            confidence: calculateConfidence(match[0], 'task'),
+            startIndex: match.index || 0,
+            endIndex: (match.index || 0) + match[0].length,
+          };
+          tasks.push(task);
+        });
       }
     }
   });
@@ -163,9 +182,11 @@ export function detectGoalsAndTasks(text: string): GoalDetectionResult {
     return !allDetections.some((other, otherIndex) => {
       if (index >= otherIndex) return false;
       
-      // Check for overlap
+      // Check for overlap or very similar text
       const overlap = (item.startIndex < other.endIndex && item.endIndex > other.startIndex);
-      if (overlap) {
+      const similarText = item.text.toLowerCase() === other.text.toLowerCase();
+      
+      if (overlap || similarText) {
         // Keep the one with higher confidence
         return other.confidence > item.confidence;
       }

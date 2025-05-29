@@ -34,6 +34,12 @@ export const useUserStats = (): UserStats => {
           .eq('user_id', user.id)
           .eq('status', 'completed');
 
+        // Fetch total goals count for completion rate
+        const { count: totalGoalsCount } = await supabase
+          .from('goals')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
         // Fetch recent journal entries for streak calculation
         const { data: recentEntries } = await supabase
           .from('journals')
@@ -49,15 +55,19 @@ export const useUserStats = (): UserStats => {
         
         if (recentEntries && recentEntries.length > 0) {
           const today = new Date();
-          const dates = recentEntries.map(entry => 
-            new Date(entry.created_at).toDateString()
-          );
-          const uniqueDates = [...new Set(dates)];
+          today.setHours(0, 0, 0, 0);
+          
+          const dates = recentEntries.map(entry => {
+            const date = new Date(entry.created_at);
+            date.setHours(0, 0, 0, 0);
+            return date.getTime();
+          });
+          
+          const uniqueDates = [...new Set(dates)].sort((a, b) => b - a);
           
           // Calculate current streak
           for (let i = 0; i < uniqueDates.length; i++) {
-            const entryDate = new Date(uniqueDates[i]);
-            const daysDiff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+            const daysDiff = Math.floor((today.getTime() - uniqueDates[i]) / (1000 * 60 * 60 * 24));
             
             if (daysDiff === i) {
               currentStreak++;
@@ -67,16 +77,18 @@ export const useUserStats = (): UserStats => {
           }
 
           // Calculate longest streak
-          for (let i = 0; i < uniqueDates.length; i++) {
-            if (i === 0 || 
-                Math.abs(new Date(uniqueDates[i]).getTime() - new Date(uniqueDates[i-1]).getTime()) 
-                <= 24 * 60 * 60 * 1000) {
+          tempStreak = 1;
+          for (let i = 1; i < uniqueDates.length; i++) {
+            const daysDiff = Math.floor((uniqueDates[i-1] - uniqueDates[i]) / (1000 * 60 * 60 * 24));
+            
+            if (daysDiff === 1) {
               tempStreak++;
               longestStreak = Math.max(longestStreak, tempStreak);
             } else {
               tempStreak = 1;
             }
           }
+          longestStreak = Math.max(longestStreak, tempStreak);
         }
 
         // Calculate weekly consistency (entries in last 7 days)
@@ -100,9 +112,11 @@ export const useUserStats = (): UserStats => {
           goalsCompleted: goalsCount || 0,
           currentStreak,
           longestStreak,
-          weeklyConsistency,
+          weeklyConsistency: Math.round(weeklyConsistency),
           totalXP,
-          level
+          level,
+          totalGoals: totalGoalsCount || 0,
+          goalsCompletionRate: totalGoalsCount ? Math.round(((goalsCount || 0) / totalGoalsCount) * 100) : 0
         });
       } catch (error) {
         console.error('Error fetching user stats:', error);
