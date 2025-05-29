@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -146,17 +145,38 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         finalTitle = `${dayOfWeek}, ${date}`;
       }
 
+      // Convert DetectedGoal objects to plain objects for JSON storage
+      const extractedGoalsData = {
+        title: finalTitle,
+        tags: finalTags,
+        detectedGoals: confirmedGoals.map(goal => ({
+          id: goal.id,
+          text: goal.text,
+          type: goal.type,
+          category: goal.category,
+          confidence: goal.confidence,
+          timeframe: goal.timeframe,
+          startIndex: goal.startIndex,
+          endIndex: goal.endIndex
+        })),
+        detectedTasks: confirmedTasks.map(task => ({
+          id: task.id,
+          text: task.text,
+          type: task.type,
+          category: task.category,
+          confidence: task.confidence,
+          timeframe: task.timeframe,
+          startIndex: task.startIndex,
+          endIndex: task.endIndex
+        }))
+      };
+
       const { data: journalData, error } = await supabase
         .from('journals')
         .insert({
           content: content.trim(),
           user_id: user.id,
-          extracted_goals: { 
-            title: finalTitle, 
-            tags: finalTags,
-            detectedGoals: confirmedGoals,
-            detectedTasks: confirmedTasks
-          }
+          extracted_goals: extractedGoalsData
         })
         .select()
         .single();
