@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,15 +7,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import type { Json } from '@/integrations/supabase/types';
 
 interface JournalEntry {
   id: number;
   content: string;
   created_at: string;
-  extracted_goals?: {
-    title?: string;
-    tags?: string[];
-  };
+  extracted_goals?: Json;
+}
+
+interface ExtractedGoals {
+  title?: string;
+  tags?: string[];
 }
 
 interface JournalEntryListProps {
@@ -115,9 +117,11 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     <div className="w-full max-w-2xl space-y-4">
       <h2 className="text-xl font-semibold text-gray-900">Your Journal Entries</h2>
       {entries.map((entry) => {
-        const entryTitle = entry.extracted_goals?.title || 
+        // Safely extract extracted_goals with type assertion
+        const extractedGoals = entry.extracted_goals as ExtractedGoals | null;
+        const entryTitle = extractedGoals?.title || 
           format(new Date(entry.created_at), 'EEEE, MMM d');
-        const entryTags = entry.extracted_goals?.tags || [];
+        const entryTags = extractedGoals?.tags || [];
         
         return (
           <Card key={entry.id} className="w-full">
