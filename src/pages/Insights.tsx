@@ -8,8 +8,13 @@ import SentimentFeedback from '@/components/insights/SentimentFeedback';
 import GamificationPanel from '@/components/insights/GamificationPanel';
 import CalendarSettings from '@/components/calendar/CalendarSettings';
 import CalendarEventsList from '@/components/calendar/CalendarEventsList';
+import { useUserStats } from '@/hooks/useUserStats';
+import { useAchievements } from '@/hooks/useAchievements';
 
 const Insights = () => {
+  const userStats = useUserStats();
+  const { achievements } = useAchievements(userStats);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -28,7 +33,7 @@ const Insights = () => {
             <div className="space-y-8">
               <InsightsOverview />
               <ProgressMetrics />
-              <GamificationPanel />
+              <GamificationPanel userStats={userStats} achievements={achievements} />
             </div>
             
             <div className="space-y-8">
