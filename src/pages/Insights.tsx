@@ -6,8 +6,6 @@ import ProgressMetrics from '@/components/insights/ProgressMetrics';
 import TrendAnalysis from '@/components/insights/TrendAnalysis';
 import SentimentFeedback from '@/components/insights/SentimentFeedback';
 import GamificationPanel from '@/components/insights/GamificationPanel';
-import CalendarSettings from '@/components/calendar/CalendarSettings';
-import CalendarEventsList from '@/components/calendar/CalendarEventsList';
 import { useUserStats } from '@/hooks/useUserStats';
 import { useAchievements } from '@/hooks/useAchievements';
 
@@ -31,22 +29,47 @@ const Insights = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-8">
+          {/* Separated sections with clear visual hierarchy */}
+          <div className="space-y-12">
+            {/* Overview Section */}
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Overview
+              </h2>
               <InsightsOverview />
-              <ProgressMetrics />
-              <GamificationPanel userStats={userStats} achievements={achievements} />
-            </div>
-            
-            <div className="space-y-8">
-              <TrendAnalysis />
-              <SentimentFeedback />
-            </div>
-          </div>
+            </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <CalendarSettings />
-            <CalendarEventsList />
+            {/* Progress Section */}
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Progress Metrics
+              </h2>
+              <ProgressMetrics />
+            </section>
+
+            {/* Analytics Section */}
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Trend Analysis
+              </h2>
+              <TrendAnalysis />
+            </section>
+
+            {/* Sentiment Section */}
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Sentiment Analysis
+              </h2>
+              <SentimentFeedback />
+            </section>
+
+            {/* Achievements Section */}
+            <section className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-2">
+                Achievements & Progress
+              </h2>
+              <GamificationPanel userStats={userStats} achievements={achievements} />
+            </section>
           </div>
         </div>
       </main>

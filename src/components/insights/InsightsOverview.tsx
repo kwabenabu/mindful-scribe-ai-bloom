@@ -1,78 +1,64 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useUserStats } from '@/hooks/useUserStats';
+import { Progress } from '@/components/ui/progress';
 
 const InsightsOverview = () => {
   const userStats = useUserStats();
 
   const metrics = [
     { 
-      label: 'JOURNAL', 
-      value: userStats.weeklyConsistency, 
-      color: 'text-cyan-400',
-      progressColor: 'bg-cyan-400',
-      description: 'Weekly consistency'
+      label: 'Weekly Consistency', 
+      value: userStats.weeklyConsistency || 0, 
+      description: 'Journal entries this week',
+      unit: '%'
     },
     { 
-      label: 'GOALS', 
+      label: 'Goals Completion', 
       value: userStats.goalsCompletionRate || 0, 
-      color: 'text-green-400',
-      progressColor: 'bg-green-400',
-      description: 'Completion rate'
+      description: 'Goals completed this month',
+      unit: '%'
     },
     { 
-      label: 'STREAK', 
-      value: userStats.currentStreak, 
-      color: 'text-blue-400',
-      progressColor: 'bg-blue-400',
-      description: 'Current days',
-      isDecimal: true,
-      maxValue: Math.max(userStats.longestStreak, 30)
+      label: 'Current Streak', 
+      value: userStats.currentStreak || 0, 
+      description: 'Consecutive days',
+      unit: 'days'
     }
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {metrics.map((metric, index) => (
-        <Card key={index} className="bg-gray-800 border-gray-700">
-          <CardContent className="p-6 text-center">
-            <div className="relative mb-4">
-              <div className="w-24 h-24 mx-auto relative">
-                <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    className="text-gray-700"
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    strokeDasharray={`${2 * Math.PI * 40}`}
-                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - (metric.isDecimal ? 
-                      metric.value / (metric.maxValue || 20) : 
-                      metric.value / 100))}`}
-                    className={metric.color}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-2xl font-bold ${metric.color}`}>
-                    {metric.isDecimal ? metric.value : `${metric.value}%`}
-                  </span>
-                </div>
+        <Card key={index} className="bg-white border border-gray-200 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 uppercase tracking-wide">
+              {metric.label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-2xl font-bold text-gray-900">
+                  {metric.value}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {metric.unit}
+                </span>
               </div>
+              
+              {metric.unit === '%' && (
+                <Progress 
+                  value={metric.value} 
+                  className="h-2 bg-gray-200"
+                />
+              )}
+              
+              <p className="text-xs text-gray-500">
+                {metric.description}
+              </p>
             </div>
-            <h3 className="text-sm font-semibold text-gray-300 mb-1">{metric.label}</h3>
-            <p className="text-xs text-gray-500">{metric.description}</p>
           </CardContent>
         </Card>
       ))}

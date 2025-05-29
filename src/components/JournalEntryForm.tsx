@@ -216,23 +216,27 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         await saveGoalsAndTasks(journalData.id);
       }
 
-      // Show event detection dialog if events are detected
-      if (detectedEvents.events.length > 0) {
-        setShowEventDialog(true);
-      }
-
       toast({
         title: "Success",
         description: "Journal entry created successfully!"
       });
 
+      // Reset form state
       setContent('');
       setGeneratedTitle('');
       setGeneratedTags([]);
       setDetectedGoals({ goals: [], tasks: [] });
-      setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
       setConfirmedGoals([]);
       setConfirmedTasks([]);
+      
+      // Show event detection dialog immediately after successful save if events are detected
+      if (detectedEvents.events.length > 0) {
+        setShowEventDialog(true);
+      } else {
+        // Reset events if no events detected
+        setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
+      }
+
       onEntryCreated?.();
     } catch (error) {
       console.error('Error creating journal entry:', error);
@@ -332,18 +336,18 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
             )}
 
             {hasDetectedEvents && (
-              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4 text-purple-600" />
-                  <p className="text-sm font-medium text-purple-800">Events Detected</p>
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm font-medium text-blue-800">Events Detected</p>
                 </div>
-                <p className="text-sm text-purple-700 mb-3">
+                <p className="text-sm text-blue-700 mb-3">
                   We found {detectedEvents.events.length} potential calendar events in your entry.
                 </p>
                 <div className="flex items-center gap-2">
-                  <Clock className="h-3 w-3 text-purple-600" />
-                  <span className="text-xs text-purple-600">
-                    Events will be processed after saving your journal entry
+                  <Clock className="h-3 w-3 text-blue-600" />
+                  <span className="text-xs text-blue-600">
+                    Events will be available for calendar integration after saving
                   </span>
                 </div>
               </div>
