@@ -6,8 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Target, Send } from 'lucide-react';
+import { Target, Send, Calendar } from 'lucide-react';
 import WeeklyGoalsDialog from './WeeklyGoalsDialog';
+import EventDetectionDialog from './calendar/EventDetectionDialog';
+import { detectEventsFromText, type DetectedEvent, type EventDetectionResult } from '@/utils/eventDetection';
 
 interface SimplifiedJournalFormProps {
   onEntryCreated?: () => void;
@@ -17,6 +19,9 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGoals, setShowGoals] = useState(false);
+  const [showEventDialog, setShowEventDialog] = useState(false);
+  const [detectedEvents, setDetectedEvents] = useState<EventDetectionResult>({ events: [], hasHighConfidenceEvents: false });
+  const [savedJournalId, setSavedJournalId] = useState<number | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -25,12 +30,18 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
+      // Detect events from the content before saving
+      const eventDetection = detectEventsFromText(content.trim());
+      console.log('Detected events:', eventDetection);
+
+      const { data: journalData, error } = await supabase
         .from('journals')
         .insert({
           user_id: user.id,
           content: content.trim(),
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -39,6 +50,16 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
         title: "Entry Saved",
         description: "Your journal entry has been saved successfully"
       });
+
+      // Store the journal ID and detected events for the dialog
+      setSavedJournalId(journalData.id);
+      setDetectedEvents(eventDetection);
+
+      // Show event detection dialog if events are detected
+      if (eventDetection.events.length > 0) {
+        console.log('Opening event detection dialog with events:', eventDetection.events);
+        setShowEventDialog(true);
+      }
 
       if (onEntryCreated) {
         onEntryCreated();
@@ -60,6 +81,16 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleEventConfirmation = () => {
+    setShowEventDialog(false);
+    setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
+    setSavedJournalId(null);
+    toast({
+      title: "Events Processed",
+      description: "Detected events have been saved for calendar integration",
+    });
   };
 
   return (
@@ -112,6 +143,14 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
       <WeeklyGoalsDialog
         isOpen={showGoals}
         onClose={() => setShowGoals(false)}
+      />
+
+      <EventDetectionDialog
+        isOpen={showEventDialog}
+        onClose={() => setShowEventDialog(false)}
+        detectedEvents={detectedEvents.events}
+        journalEntryId={savedJournalId || undefined}
+        onEventsConfirmed={handleEventConfirmation}
       />
     </>
   );
