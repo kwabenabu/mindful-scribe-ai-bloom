@@ -55,27 +55,27 @@ const Index = () => {
               </CardContent>
             </Card>
 
-            <Card className="opacity-60">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/insights')}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center space-x-2 text-lg">
-                  <Calendar className="h-5 w-5 text-purple-500" />
-                  <span>Calendar</span>
+                  <TrendingUp className="h-5 w-5 text-purple-500" />
+                  <span>Insights</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">Coming soon - track your writing habits</p>
+                <p className="text-sm text-gray-600">Track your progress and analyze trends</p>
               </CardContent>
             </Card>
 
             <Card className="opacity-60">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center space-x-2 text-lg">
-                  <TrendingUp className="h-5 w-5 text-orange-500" />
-                  <span>Insights</span>
+                  <Calendar className="h-5 w-5 text-orange-500" />
+                  <span>Calendar</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">Coming soon - analyze your writing patterns</p>
+                <p className="text-sm text-gray-600">Coming soon - track your writing habits</p>
               </CardContent>
             </Card>
           </div>
@@ -90,14 +90,25 @@ const Index = () => {
                 <p className="text-gray-600">
                   Your journal is a safe space to express yourself, track your progress, and reflect on your experiences.
                 </p>
-                <Button 
-                  size="lg" 
-                  onClick={() => navigate('/journal')}
-                  className="flex items-center space-x-2"
-                >
-                  <BookOpen className="h-5 w-5" />
-                  <span>Go to Journal</span>
-                </Button>
+                <div className="flex gap-4 justify-center">
+                  <Button 
+                    size="lg" 
+                    onClick={() => navigate('/journal')}
+                    className="flex items-center space-x-2"
+                  >
+                    <BookOpen className="h-5 w-5" />
+                    <span>Go to Journal</span>
+                  </Button>
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    onClick={() => navigate('/insights')}
+                    className="flex items-center space-x-2"
+                  >
+                    <TrendingUp className="h-5 w-5" />
+                    <span>View Insights</span>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
