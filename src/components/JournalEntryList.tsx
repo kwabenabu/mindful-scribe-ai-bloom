@@ -6,12 +6,17 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 interface JournalEntry {
   id: number;
   content: string;
   created_at: string;
+  extracted_goals?: {
+    title?: string;
+    tags?: string[];
+  };
 }
 
 interface JournalEntryListProps {
@@ -30,7 +35,7 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     try {
       const { data, error } = await supabase
         .from('journals')
-        .select('id, content, created_at')
+        .select('id, content, created_at, extracted_goals')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -109,31 +114,51 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
   return (
     <div className="w-full max-w-2xl space-y-4">
       <h2 className="text-xl font-semibold text-gray-900">Your Journal Entries</h2>
-      {entries.map((entry) => (
-        <Card key={entry.id} className="w-full">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <Calendar className="h-4 w-4" />
-                <span>{format(new Date(entry.created_at), 'PPP p')}</span>
+      {entries.map((entry) => {
+        const entryTitle = entry.extracted_goals?.title || 
+          format(new Date(entry.created_at), 'EEEE, MMM d');
+        const entryTags = entry.extracted_goals?.tags || [];
+        
+        return (
+          <Card key={entry.id} className="w-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-lg font-medium text-gray-900 mb-1">
+                    {entryTitle}
+                  </CardTitle>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Calendar className="h-4 w-4" />
+                    <span>{format(new Date(entry.created_at), 'PPP p')}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(entry.id)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDelete(entry.id)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-              {entry.content}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
+              {entryTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {entryTags.map((tag, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {entry.content}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
