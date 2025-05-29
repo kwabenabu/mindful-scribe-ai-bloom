@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,8 +9,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { generateTitleAndTags } from '@/utils/aiUtils';
 import { detectGoalsAndTasks, type DetectedGoal, type GoalDetectionResult } from '@/utils/goalDetection';
+import { detectEventsFromText, type DetectedEvent, type EventDetectionResult } from '@/utils/eventDetection';
 import GoalConfirmationDialog from './GoalConfirmationDialog';
-import { Target, CheckSquare } from 'lucide-react';
+import EventDetectionDialog from './calendar/EventDetectionDialog';
+import { Target, CheckSquare, Calendar, Clock } from 'lucide-react';
 
 interface JournalEntryFormProps {
   onEntryCreated?: () => void;
@@ -22,9 +25,13 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
   const [generatedTitle, setGeneratedTitle] = useState('');
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [detectedGoals, setDetectedGoals] = useState<GoalDetectionResult>({ goals: [], tasks: [] });
+  const [detectedEvents, setDetectedEvents] = useState<EventDetectionResult>({ events: [], hasHighConfidenceEvents: false });
   const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [showEventDialog, setShowEventDialog] = useState(false);
   const [confirmedGoals, setConfirmedGoals] = useState<DetectedGoal[]>([]);
   const [confirmedTasks, setConfirmedTasks] = useState<DetectedGoal[]>([]);
+  const [confirmedEvents, setConfirmedEvents] = useState<DetectedEvent[]>([]);
+  const [savedJournalId, setSavedJournalId] = useState<number | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -32,7 +39,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
     const newContent = e.target.value;
     setContent(newContent);
     
-    // Auto-generate title and tags when content reaches a reasonable length
+    // Auto-generate title, tags, goals, and events when content reaches a reasonable length
     if (newContent.length > 50 && !isGenerating) {
       setIsGenerating(true);
       try {
@@ -43,13 +50,20 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         // Detect goals and tasks
         const goalDetection = detectGoalsAndTasks(newContent);
         setDetectedGoals(goalDetection);
+
+        // Detect events
+        const eventDetection = detectEventsFromText(newContent);
+        setDetectedEvents(eventDetection);
         
-        // Show goal confirmation dialog if goals or tasks are detected
         if (goalDetection.goals.length > 0 || goalDetection.tasks.length > 0) {
           console.log('Detected goals and tasks:', goalDetection);
         }
+
+        if (eventDetection.events.length > 0) {
+          console.log('Detected events:', eventDetection);
+        }
       } catch (error) {
-        console.error('Error generating title and tags:', error);
+        console.error('Error generating content analysis:', error);
         // Fallback to timestamp-based title
         const now = new Date();
         const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
@@ -72,6 +86,14 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         description: `Added ${goals.length} goals and ${tasks.length} tasks to track`,
       });
     }
+  };
+
+  const handleEventConfirmation = () => {
+    setShowEventDialog(false);
+    toast({
+      title: "Events Processed",
+      description: "Detected events have been saved for calendar integration",
+    });
   };
 
   const saveGoalsAndTasks = async (journalId: number) => {
@@ -186,9 +208,17 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         throw error;
       }
 
+      // Save the journal ID for event processing
+      setSavedJournalId(journalData.id);
+
       // Save goals and tasks to their respective tables
       if (journalData && (confirmedGoals.length > 0 || confirmedTasks.length > 0)) {
         await saveGoalsAndTasks(journalData.id);
+      }
+
+      // Show event detection dialog if events are detected
+      if (detectedEvents.events.length > 0) {
+        setShowEventDialog(true);
       }
 
       toast({
@@ -200,6 +230,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
       setGeneratedTitle('');
       setGeneratedTags([]);
       setDetectedGoals({ goals: [], tasks: [] });
+      setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
       setConfirmedGoals([]);
       setConfirmedTasks([]);
       onEntryCreated?.();
@@ -219,8 +250,9 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
     setGeneratedTags(tags => tags.filter(tag => tag !== tagToRemove));
   };
 
-  const hasDetectedItems = detectedGoals.goals.length > 0 || detectedGoals.tasks.length > 0;
-  const hasConfirmedItems = confirmedGoals.length > 0 || confirmedTasks.length > 0;
+  const hasDetectedGoals = detectedGoals.goals.length > 0 || detectedGoals.tasks.length > 0;
+  const hasConfirmedGoals = confirmedGoals.length > 0 || confirmedTasks.length > 0;
+  const hasDetectedEvents = detectedEvents.events.length > 0;
 
   return (
     <>
@@ -266,7 +298,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
               </div>
             )}
 
-            {hasDetectedItems && !hasConfirmedItems && (
+            {hasDetectedGoals && !hasConfirmedGoals && (
               <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Target className="h-4 w-4 text-amber-600" />
@@ -287,7 +319,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
               </div>
             )}
 
-            {hasConfirmedItems && (
+            {hasConfirmedGoals && (
               <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckSquare className="h-4 w-4 text-green-600" />
@@ -296,6 +328,24 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
                 <p className="text-sm text-green-700">
                   {confirmedGoals.length} goals and {confirmedTasks.length} tasks will be added to your tracking system.
                 </p>
+              </div>
+            )}
+
+            {hasDetectedEvents && (
+              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-4 w-4 text-purple-600" />
+                  <p className="text-sm font-medium text-purple-800">Events Detected</p>
+                </div>
+                <p className="text-sm text-purple-700 mb-3">
+                  We found {detectedEvents.events.length} potential calendar events in your entry.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-purple-600" />
+                  <span className="text-xs text-purple-600">
+                    Events will be processed after saving your journal entry
+                  </span>
+                </div>
               </div>
             )}
 
@@ -314,6 +364,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
                   setGeneratedTitle('');
                   setGeneratedTags([]);
                   setDetectedGoals({ goals: [], tasks: [] });
+                  setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
                   setConfirmedGoals([]);
                   setConfirmedTasks([]);
                 }}
@@ -334,6 +385,14 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         onClose={() => setShowGoalDialog(false)}
         detectedItems={detectedGoals}
         onConfirm={handleGoalConfirmation}
+      />
+
+      <EventDetectionDialog
+        isOpen={showEventDialog}
+        onClose={() => setShowEventDialog(false)}
+        detectedEvents={detectedEvents.events}
+        journalEntryId={savedJournalId || undefined}
+        onEventsConfirmed={handleEventConfirmation}
       />
     </>
   );

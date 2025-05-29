@@ -48,6 +48,71 @@ export type Database = {
         }
         Relationships: []
       }
+      detected_events: {
+        Row: {
+          calendar_provider: string | null
+          confidence_score: number | null
+          created_at: string
+          duration_minutes: number | null
+          event_date: string | null
+          event_datetime: string | null
+          event_description: string | null
+          event_time: string | null
+          event_title: string
+          external_event_id: string | null
+          id: string
+          journal_entry_id: number | null
+          location: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_provider?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          event_date?: string | null
+          event_datetime?: string | null
+          event_description?: string | null
+          event_time?: string | null
+          event_title: string
+          external_event_id?: string | null
+          id?: string
+          journal_entry_id?: number | null
+          location?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_provider?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          duration_minutes?: number | null
+          event_date?: string | null
+          event_datetime?: string | null
+          event_description?: string | null
+          event_time?: string | null
+          event_title?: string
+          external_event_id?: string | null
+          id?: string
+          journal_entry_id?: number | null
+          location?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detected_events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string
@@ -212,6 +277,42 @@ export type Database = {
           email?: string | null
           id?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      user_calendar_settings: {
+        Row: {
+          auto_add_events: boolean | null
+          created_at: string
+          default_meeting_duration: number | null
+          google_calendar_enabled: boolean | null
+          id: string
+          outlook_calendar_enabled: boolean | null
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_add_events?: boolean | null
+          created_at?: string
+          default_meeting_duration?: number | null
+          google_calendar_enabled?: boolean | null
+          id?: string
+          outlook_calendar_enabled?: boolean | null
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_add_events?: boolean | null
+          created_at?: string
+          default_meeting_duration?: number | null
+          google_calendar_enabled?: boolean | null
+          id?: string
+          outlook_calendar_enabled?: boolean | null
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
