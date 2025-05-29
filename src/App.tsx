@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Settings from '@/pages/Settings';
 import Calendar from '@/pages/Calendar';
+import FAQ from '@/pages/FAQ';
 
 const queryClient = new QueryClient();
 
@@ -48,6 +50,11 @@ function App() {
               <Route path="/calendar" element={
                 <ProtectedRoute>
                   <Calendar />
+                </ProtectedRoute>
+              } />
+              <Route path="/faq" element={
+                <ProtectedRoute>
+                  <FAQ />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />

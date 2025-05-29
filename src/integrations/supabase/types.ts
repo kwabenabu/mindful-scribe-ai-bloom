@@ -48,6 +48,45 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_integrations: {
+        Row: {
+          access_token: string | null
+          calendar_id: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_enabled: boolean | null
+          provider: string
+          refresh_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          provider: string
+          refresh_token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          provider?: string
+          refresh_token?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       detected_events: {
         Row: {
           calendar_provider: string | null
@@ -228,7 +267,7 @@ export type Database = {
       }
       journals: {
         Row: {
-          content: string | null
+          content: string
           created_at: string
           embedding: string | null
           extracted_events: Json | null
@@ -236,9 +275,10 @@ export type Database = {
           id: number
           sentiment_score: number | null
           user_id: string | null
+          weekly_goals: Json | null
         }
         Insert: {
-          content?: string | null
+          content: string
           created_at?: string
           embedding?: string | null
           extracted_events?: Json | null
@@ -246,9 +286,10 @@ export type Database = {
           id?: number
           sentiment_score?: number | null
           user_id?: string | null
+          weekly_goals?: Json | null
         }
         Update: {
-          content?: string | null
+          content?: string
           created_at?: string
           embedding?: string | null
           extracted_events?: Json | null
@@ -256,6 +297,7 @@ export type Database = {
           id?: number
           sentiment_score?: number | null
           user_id?: string | null
+          weekly_goals?: Json | null
         }
         Relationships: []
       }
@@ -316,6 +358,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string | null
+          id: string
+          is_first_time: boolean | null
+          journaling_purpose: string | null
+          profile_picture_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name?: string | null
+          id?: string
+          is_first_time?: boolean | null
+          journaling_purpose?: string | null
+          profile_picture_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string | null
+          id?: string
+          is_first_time?: boolean | null
+          journaling_purpose?: string | null
+          profile_picture_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string | null
@@ -336,6 +414,50 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      weekly_goals: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          goal_text: string
+          id: string
+          is_completed: boolean | null
+          source_journal_id: number | null
+          updated_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          goal_text: string
+          id?: string
+          is_completed?: boolean | null
+          source_journal_id?: number | null
+          updated_at?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          goal_text?: string
+          id?: string
+          is_completed?: boolean | null
+          source_journal_id?: number | null
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_goals_source_journal_id_fkey"
+            columns: ["source_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

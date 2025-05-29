@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
 import Header from '@/components/Header';
-import JournalEntryForm from '@/components/JournalEntryForm';
-import JournalEntryList from '@/components/JournalEntryList';
+import SimplifiedJournalForm from '@/components/SimplifiedJournalForm';
 
 const Journal = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -25,9 +24,8 @@ const Journal = () => {
             </p>
           </div>
           
-          <div className="flex flex-col items-center space-y-8">
-            <JournalEntryForm onEntryCreated={handleEntryCreated} />
-            <JournalEntryList refreshTrigger={refreshTrigger} />
+          <div className="flex flex-col items-center">
+            <SimplifiedJournalForm onEntryCreated={handleEntryCreated} />
           </div>
         </div>
       </main>

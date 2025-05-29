@@ -2,8 +2,9 @@
 import React from 'react';
 import Header from '@/components/Header';
 import CalendarSettings from '@/components/calendar/CalendarSettings';
+import UserProfileForm from '@/components/UserProfileForm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings as SettingsIcon, User, Brain } from 'lucide-react';
+import { Settings as SettingsIcon, Brain } from 'lucide-react';
 
 const Settings = () => {
   return (
@@ -22,22 +23,11 @@ const Settings = () => {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
+              <UserProfileForm />
               <CalendarSettings />
             </div>
             
             <div className="space-y-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Profile Settings
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">Profile management coming soon...</p>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
