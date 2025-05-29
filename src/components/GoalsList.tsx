@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ interface Goal {
   id: number;
   title: string;
   description?: string;
-  status: 'active' | 'completed' | 'paused';
+  status: string; // Changed from union type to string to match Supabase data
   target_frequency?: string;
   created_at: string;
 }
@@ -73,7 +72,7 @@ const GoalsList = () => {
 
       setGoals(goals.map(goal => 
         goal.id === goalId 
-          ? { ...goal, status: newStatus as 'active' | 'completed' | 'paused' }
+          ? { ...goal, status: newStatus }
           : goal
       ));
 
