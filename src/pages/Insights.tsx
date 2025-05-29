@@ -15,6 +15,8 @@ const Insights = () => {
   const userStats = useUserStats();
   const { achievements } = useAchievements(userStats);
 
+  console.log('Insights component rendering', { userStats, achievements });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />

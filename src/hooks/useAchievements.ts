@@ -91,21 +91,26 @@ export const useAchievements = (userStats: UserStats) => {
   ];
 
   useEffect(() => {
+    // Only process achievements if userStats has meaningful data
+    if (!userStats || typeof userStats.totalJournalEntries === 'undefined') {
+      return;
+    }
+
     const updatedAchievements = achievementDefinitions.map(def => {
       let currentValue = 0;
       
       switch (def.category) {
         case 'journal':
-          currentValue = userStats.totalJournalEntries;
+          currentValue = userStats.totalJournalEntries || 0;
           break;
         case 'goals':
-          currentValue = userStats.goalsCompleted;
+          currentValue = userStats.goalsCompleted || 0;
           break;
         case 'streak':
-          currentValue = userStats.currentStreak;
+          currentValue = userStats.currentStreak || 0;
           break;
         case 'consistency':
-          currentValue = userStats.weeklyConsistency;
+          currentValue = userStats.weeklyConsistency || 0;
           break;
       }
 
@@ -131,7 +136,7 @@ export const useAchievements = (userStats: UserStats) => {
     if (newlyUnlocked.length > 0) {
       setNewAchievements(newlyUnlocked);
     }
-  }, [userStats]);
+  }, [userStats, achievements]);
 
   const dismissNewAchievements = () => {
     setNewAchievements([]);
