@@ -51,6 +51,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         });
 
       if (error) {
+        console.error('Supabase error:', error);
         throw error;
       }
 
