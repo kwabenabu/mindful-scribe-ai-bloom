@@ -38,33 +38,39 @@ const Header = () => {
           <div className="flex items-center space-x-6">
             <h1 className="text-xl font-semibold text-gray-900">Journal App</h1>
             <nav className="flex space-x-4">
-              <Button
-                variant={location.pathname === '/' ? 'default' : 'ghost'}
-                size="sm"
+              <button
                 onClick={() => navigate('/')}
-                className="flex items-center space-x-2"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/' 
+                    ? 'bg-gray-900 text-white' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 <Home className="h-4 w-4" />
                 <span>Home</span>
-              </Button>
-              <Button
-                variant={location.pathname === '/journal' ? 'default' : 'ghost'}
-                size="sm"
+              </button>
+              <button
                 onClick={() => navigate('/journal')}
-                className="flex items-center space-x-2"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/journal' 
+                    ? 'bg-gray-900 text-white' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 <BookOpen className="h-4 w-4" />
                 <span>Journal</span>
-              </Button>
-              <Button
-                variant={location.pathname === '/insights' ? 'default' : 'ghost'}
-                size="sm"
+              </button>
+              <button
                 onClick={() => navigate('/insights')}
-                className="flex items-center space-x-2"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/insights' 
+                    ? 'bg-gray-900 text-white' 
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}
               >
                 <TrendingUp className="h-4 w-4" />
                 <span>Insights</span>
-              </Button>
+              </button>
             </nav>
           </div>
           <div className="flex items-center space-x-4">

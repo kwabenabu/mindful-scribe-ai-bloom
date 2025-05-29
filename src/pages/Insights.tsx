@@ -7,6 +7,7 @@ import TrendAnalysis from '@/components/insights/TrendAnalysis';
 import ActivityCounters from '@/components/insights/ActivityCounters';
 import GamificationPanel from '@/components/insights/GamificationPanel';
 import AchievementNotification from '@/components/insights/AchievementNotification';
+import SentimentFeedback from '@/components/insights/SentimentFeedback';
 import GoalsList from '@/components/GoalsList';
 import { useUserStats } from '@/hooks/useUserStats';
 import { useAchievements } from '@/hooks/useAchievements';
@@ -16,35 +17,48 @@ const Insights = () => {
   const { achievements, newAchievements, dismissNewAchievements } = useAchievements(userStats);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-50">
       <Header />
       <main className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">INSIGHTS</h1>
-            <p className="text-gray-400">Track your progress and analyze your trends</p>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Insights</h1>
+            <p className="text-gray-600">Track your progress and analyze your trends</p>
           </div>
 
+          {/* Sentiment-Based Feedback */}
+          <SentimentFeedback />
+
           {/* Gamification Panel */}
-          <GamificationPanel userStats={userStats} achievements={achievements} />
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <GamificationPanel userStats={userStats} achievements={achievements} />
+          </div>
 
           {/* Overview Section */}
-          <InsightsOverview />
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <InsightsOverview />
+          </div>
 
           {/* Progress Metrics */}
-          <ProgressMetrics />
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <ProgressMetrics />
+          </div>
 
           {/* Activity Counters */}
-          <ActivityCounters />
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <ActivityCounters />
+          </div>
 
           {/* Goals Management */}
-          <div className="bg-white rounded-lg p-6">
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
             <GoalsList />
           </div>
 
           {/* Trend Analysis */}
-          <TrendAnalysis />
+          <div className="bg-white rounded-lg p-6 shadow-sm border">
+            <TrendAnalysis />
+          </div>
         </div>
       </main>
 
