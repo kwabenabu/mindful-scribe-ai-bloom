@@ -9,10 +9,9 @@ import { Trash2, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface JournalEntry {
-  id: string;
+  id: number;
   content: string;
   created_at: string;
-  updated_at: string;
 }
 
 interface JournalEntryListProps {
@@ -31,7 +30,7 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     try {
       const { data, error } = await supabase
         .from('journals')
-        .select('id, content, created_at, updated_at')
+        .select('id, content, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -56,7 +55,7 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     fetchEntries();
   }, [user, refreshTrigger]);
 
-  const handleDelete = async (entryId: string) => {
+  const handleDelete = async (entryId: number) => {
     if (!confirm('Are you sure you want to delete this journal entry?')) {
       return;
     }
