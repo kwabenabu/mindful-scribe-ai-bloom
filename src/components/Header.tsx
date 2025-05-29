@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, Home } from 'lucide-react';
+import { BookOpen, Home, TrendingUp } from 'lucide-react';
 
 const Header = () => {
   const { user, signOut } = useAuth();
@@ -55,6 +55,15 @@ const Header = () => {
               >
                 <BookOpen className="h-4 w-4" />
                 <span>Journal</span>
+              </Button>
+              <Button
+                variant={location.pathname === '/insights' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => navigate('/insights')}
+                className="flex items-center space-x-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                <span>Insights</span>
               </Button>
             </nav>
           </div>
