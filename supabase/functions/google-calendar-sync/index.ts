@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -109,7 +108,7 @@ serve(async (req) => {
         end: {},
       };
 
-      // Handle datetime vs date-only events
+      // Handle datetime vs date-only events with improved datetime parsing
       if (event.event_datetime) {
         const startTime = new Date(event.event_datetime);
         const endTime = new Date(startTime.getTime() + (event.duration_minutes || 30) * 60000);
@@ -118,9 +117,29 @@ serve(async (req) => {
         googleEvent.end.dateTime = endTime.toISOString();
         googleEvent.start.timeZone = event.timezone || 'UTC';
         googleEvent.end.timeZone = event.timezone || 'UTC';
+      } else if (event.event_date && event.event_time) {
+        // Combine date and time manually if datetime is not available
+        const dateStr = event.event_date === 'today' ? new Date().toISOString().split('T')[0] :
+                       event.event_date === 'tomorrow' ? new Date(Date.now() + 86400000).toISOString().split('T')[0] :
+                       new Date().toISOString().split('T')[0]; // fallback to today
+        
+        // Parse the time (should now be in HH:MM:SS format)
+        const timeStr = event.event_time;
+        const startTime = new Date(`${dateStr}T${timeStr}`);
+        const endTime = new Date(startTime.getTime() + (event.duration_minutes || 30) * 60000);
+        
+        googleEvent.start.dateTime = startTime.toISOString();
+        googleEvent.end.dateTime = endTime.toISOString();
+        googleEvent.start.timeZone = event.timezone || 'UTC';
+        googleEvent.end.timeZone = event.timezone || 'UTC';
       } else if (event.event_date) {
-        googleEvent.start.date = event.event_date;
-        googleEvent.end.date = event.event_date;
+        // Date-only event
+        const dateStr = event.event_date === 'today' ? new Date().toISOString().split('T')[0] :
+                       event.event_date === 'tomorrow' ? new Date(Date.now() + 86400000).toISOString().split('T')[0] :
+                       new Date().toISOString().split('T')[0]; // fallback to today
+        
+        googleEvent.start.date = dateStr;
+        googleEvent.end.date = dateStr;
       } else {
         // Default to today if no date specified
         const today = new Date().toISOString().split('T')[0];

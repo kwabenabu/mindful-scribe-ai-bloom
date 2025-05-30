@@ -17,6 +17,32 @@ interface EventDetectionResult {
   hasHighConfidenceEvents: boolean;
 }
 
+const parseTimeToStandardFormat = (timeStr: string): string => {
+  // Remove extra spaces and convert to lowercase
+  const cleanTime = timeStr.trim().toLowerCase();
+  
+  // Match time patterns like "1pm", "3:30pm", "9:00 AM", etc.
+  const timeMatch = cleanTime.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  
+  if (!timeMatch) {
+    return timeStr; // Return original if can't parse
+  }
+  
+  let hours = parseInt(timeMatch[1]);
+  const minutes = parseInt(timeMatch[2] || '0');
+  const period = timeMatch[3];
+  
+  // Convert to 24-hour format
+  if (period === 'pm' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'am' && hours === 12) {
+    hours = 0;
+  }
+  
+  // Format as HH:MM:SS
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+};
+
 export const detectEventsFromText = (text: string): EventDetectionResult => {
   const events: DetectedEvent[] = [];
   const content = text.toLowerCase();
@@ -70,7 +96,7 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
             const match = pattern.exec(sentence);
             if (match) {
               timeMatch = match;
-              timeStr = match[1];
+              timeStr = parseTimeToStandardFormat(match[1]); // Parse to standard format
               break;
             }
           }
@@ -206,18 +232,11 @@ const parseDateTime = (dateStr: string, timeStr: string): string => {
     // Keep today's date
   }
   
-  // Parse time
-  const timeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+  // Parse time using the standard format time
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
   if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2] || '0');
-    const period = timeMatch[3]?.toLowerCase();
-    
-    if (period === 'pm' && hours !== 12) {
-      hours += 12;
-    } else if (period === 'am' && hours === 12) {
-      hours = 0;
-    }
+    const hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
     
     targetDate.setHours(hours, minutes, 0, 0);
   }
