@@ -67,17 +67,27 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
   };
 
   const handleConfirmEvents = async () => {
-    if (!user || selectedEvents.size === 0) return;
+    if (!user || selectedEvents.size === 0) {
+      toast({
+        title: "No Events Selected",
+        description: "Please select at least one event to save",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsSaving(true);
     try {
+      console.log('Saving events with user_id:', user.id);
+      console.log('Journal entry ID:', journalEntryId);
+      
       const eventsToSave = Array.from(selectedEvents).map(eventId => {
         const event = getEventData(eventId);
         return {
           user_id: user.id,
-          journal_entry_id: journalEntryId,
+          journal_entry_id: journalEntryId || null,
           event_title: event.title,
-          event_description: event.description,
+          event_description: event.description || null,
           event_date: event.date || null,
           event_time: event.time || null,
           event_datetime: event.datetime || null,
@@ -88,14 +98,22 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
         };
       });
 
-      const { error } = await supabase
-        .from('detected_events')
-        .insert(eventsToSave);
+      console.log('Events to save:', eventsToSave);
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('detected_events')
+        .insert(eventsToSave)
+        .select();
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      console.log('Successfully saved events:', data);
 
       toast({
-        title: "Events Detected",
+        title: "Events Saved",
         description: `${selectedEvents.size} events have been saved for calendar integration`,
       });
 
@@ -105,7 +123,7 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
       console.error('Error saving detected events:', error);
       toast({
         title: "Error",
-        description: "Failed to save detected events",
+        description: `Failed to save detected events: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
