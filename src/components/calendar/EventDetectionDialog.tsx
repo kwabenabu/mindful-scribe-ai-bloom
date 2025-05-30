@@ -40,7 +40,18 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
   );
   const [editingEvents, setEditingEvents] = useState<{ [key: string]: DetectedEvent }>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [savedEvents, setSavedEvents] = useState<DetectedEvent[]>([]);
+  const [savedEvents, setSavedEvents] = useState<Array<{
+    id: string;
+    event_title: string;
+    event_description?: string;
+    event_date?: string;
+    event_time?: string;
+    event_datetime?: string;
+    duration_minutes?: number;
+    location?: string;
+    status?: string;
+    external_event_id?: string;
+  }>>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -114,19 +125,18 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
 
       console.log('Successfully saved events:', data);
 
-      // Store saved events for calendar sync
+      // Transform the data to match GoogleCalendarSync expected format
       setSavedEvents(data.map(event => ({
         id: event.id,
-        title: event.event_title,
-        description: event.event_description,
-        date: event.event_date,
-        time: event.event_time,
-        datetime: event.event_datetime,
-        duration: event.duration_minutes,
+        event_title: event.event_title,
+        event_description: event.event_description,
+        event_date: event.event_date,
+        event_time: event.event_time,
+        event_datetime: event.event_datetime,
+        duration_minutes: event.duration_minutes,
         location: event.location,
-        confidence: event.confidence_score,
-        startIndex: 0,
-        endIndex: 0
+        status: event.status,
+        external_event_id: event.external_event_id
       })));
 
       toast({
