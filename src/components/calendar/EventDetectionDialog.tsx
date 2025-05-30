@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -6,18 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Clock, MapPin, Star, Check, X } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import GoogleCalendarSync from './GoogleCalendarSync';
+import EventReviewTab from './EventReviewTab';
 import type { DetectedEvent } from '@/utils/eventDetection';
 
 interface EventDetectionDialogProps {
@@ -161,17 +157,6 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
     onClose();
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.9) return 'bg-green-100 text-green-800';
-    if (confidence >= 0.8) return 'bg-blue-100 text-blue-800';
-    if (confidence >= 0.7) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const formatConfidence = (confidence: number) => {
-    return `${Math.round(confidence * 100)}%`;
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -195,123 +180,17 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
           </TabsList>
 
           <TabsContent value="review" className="space-y-4">
-            {detectedEvents.map((event) => {
-              const eventData = getEventData(event.id);
-              const isSelected = selectedEvents.has(event.id);
-
-              return (
-                <Card key={event.id} className={`transition-all ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Button
-                          variant={isSelected ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleEventToggle(event.id)}
-                          className="flex items-center gap-2"
-                        >
-                          {isSelected ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                          {isSelected ? 'Selected' : 'Select'}
-                        </Button>
-                        <Badge className={getConfidenceColor(event.confidence)}>
-                          <Star className="h-3 w-3 mr-1" />
-                          {formatConfidence(event.confidence)} confidence
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`title-${event.id}`}>Event Title</Label>
-                        <Input
-                          id={`title-${event.id}`}
-                          value={eventData.title}
-                          onChange={(e) => handleEventEdit(event.id, 'title', e.target.value)}
-                          placeholder="Event title"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`duration-${event.id}`} className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Duration (minutes)
-                        </Label>
-                        <Input
-                          id={`duration-${event.id}`}
-                          type="number"
-                          value={eventData.duration || 30}
-                          onChange={(e) => handleEventEdit(event.id, 'duration', e.target.value)}
-                          placeholder="30"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`date-${event.id}`}>Date</Label>
-                        <Input
-                          id={`date-${event.id}`}
-                          value={eventData.date || ''}
-                          onChange={(e) => handleEventEdit(event.id, 'date', e.target.value)}
-                          placeholder="e.g., Monday, tomorrow"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`time-${event.id}`}>Time</Label>
-                        <Input
-                          id={`time-${event.id}`}
-                          value={eventData.time || ''}
-                          onChange={(e) => handleEventEdit(event.id, 'time', e.target.value)}
-                          placeholder="e.g., 6:00 PM"
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor={`location-${event.id}`} className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          Location
-                        </Label>
-                        <Input
-                          id={`location-${event.id}`}
-                          value={eventData.location || ''}
-                          onChange={(e) => handleEventEdit(event.id, 'location', e.target.value)}
-                          placeholder="Event location"
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor={`description-${event.id}`}>Description</Label>
-                        <Textarea
-                          id={`description-${event.id}`}
-                          value={eventData.description || ''}
-                          onChange={(e) => handleEventEdit(event.id, 'description', e.target.value)}
-                          placeholder="Event description"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-
-            <div className="flex justify-between items-center pt-4 border-t">
-              <div className="text-sm text-gray-600">
-                {selectedEvents.size} of {detectedEvents.length} events selected
-              </div>
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleConfirmEvents} 
-                  disabled={selectedEvents.size === 0 || isSaving}
-                >
-                  {isSaving ? 'Saving...' : `Confirm ${selectedEvents.size} Events`}
-                </Button>
-              </div>
-            </div>
+            <EventReviewTab
+              detectedEvents={detectedEvents}
+              selectedEvents={selectedEvents}
+              editingEvents={editingEvents}
+              isSaving={isSaving}
+              onEventToggle={handleEventToggle}
+              onEventEdit={handleEventEdit}
+              onConfirmEvents={handleConfirmEvents}
+              onClose={onClose}
+              getEventData={getEventData}
+            />
           </TabsContent>
 
           <TabsContent value="sync" className="space-y-4">
