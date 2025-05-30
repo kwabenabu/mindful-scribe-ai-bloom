@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,12 +30,30 @@ const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [googleClientId, setGoogleClientId] = useState<string>('');
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
+    fetchGoogleClientId();
     checkGoogleConnection();
+    handleOAuthCallback();
   }, [user]);
+
+  const fetchGoogleClientId = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: { action: 'get_client_id' }
+      });
+
+      if (error) throw error;
+      if (data.success) {
+        setGoogleClientId(data.clientId);
+      }
+    } catch (error) {
+      console.error('Failed to fetch Google Client ID:', error);
+    }
+  };
 
   const checkGoogleConnection = async () => {
     if (!user) return;
@@ -53,61 +70,139 @@ const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
       if (data && !error) {
         setIsConnected(true);
         setAccessToken(data.access_token);
+        
+        // Check if token needs refresh
+        if (data.expires_at && new Date(data.expires_at) <= new Date()) {
+          await refreshAccessToken(data.refresh_token);
+        }
       }
     } catch (error) {
       console.log('No Google Calendar connection found');
     }
   };
 
-  const connectToGoogle = async () => {
-    setIsConnecting(true);
+  const handleOAuthCallback = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code && !isConnected) {
+      exchangeCodeForTokens(code);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
+  const exchangeCodeForTokens = async (authCode: string) => {
     try {
-      const clientId = 'your-google-client-id'; // This should come from environment
-      const redirectUri = `${window.location.origin}/calendar`;
-      const scope = 'https://www.googleapis.com/auth/calendar';
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        `response_type=code&` +
-        `access_type=offline&` +
-        `prompt=consent`;
-
-      // Open Google OAuth in a popup
-      const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
-      
-      // Listen for the auth callback
-      const checkClosed = setInterval(() => {
-        if (popup?.closed) {
-          clearInterval(checkClosed);
-          setIsConnecting(false);
-          toast({
-            title: "Connection Cancelled",
-            description: "Google Calendar connection was cancelled",
-            variant: "destructive"
-          });
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'auth',
+          authCode: authCode
         }
-      }, 1000);
+      });
 
-      // You would handle the OAuth callback here
-      // For now, simulate a successful connection
-      setTimeout(() => {
-        popup?.close();
-        clearInterval(checkClosed);
+      if (error) throw error;
+
+      if (data.success) {
+        // Store tokens in calendar_integrations table
+        const { error: insertError } = await supabase
+          .from('calendar_integrations')
+          .upsert({
+            user_id: user?.id,
+            provider: 'google',
+            access_token: data.accessToken,
+            refresh_token: data.refreshToken,
+            expires_at: new Date(Date.now() + data.expiresIn * 1000).toISOString(),
+            is_enabled: true
+          });
+
+        if (insertError) throw insertError;
+
         setIsConnected(true);
+        setAccessToken(data.accessToken);
         setIsConnecting(false);
+        
         toast({
           title: "Connected!",
           description: "Successfully connected to Google Calendar"
         });
-      }, 3000);
+      }
+    } catch (error) {
+      console.error('OAuth exchange error:', error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to Google Calendar",
+        variant: "destructive"
+      });
+      setIsConnecting(false);
+    }
+  };
+
+  const refreshAccessToken = async (refreshToken: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'refresh_token',
+          refreshToken: refreshToken
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        // Update tokens in database
+        const { error: updateError } = await supabase
+          .from('calendar_integrations')
+          .update({
+            access_token: data.accessToken,
+            expires_at: new Date(Date.now() + data.expiresIn * 1000).toISOString()
+          })
+          .eq('user_id', user?.id)
+          .eq('provider', 'google');
+
+        if (updateError) throw updateError;
+
+        setAccessToken(data.accessToken);
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      // If refresh fails, user needs to reconnect
+      setIsConnected(false);
+      setAccessToken(null);
+    }
+  };
+
+  const connectToGoogle = async () => {
+    if (!googleClientId) {
+      toast({
+        title: "Configuration Error",
+        description: "Google Client ID not configured",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      const scope = 'https://www.googleapis.com/auth/calendar';
+      
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `response_type=code&` +
+        `access_type=offline&` +
+        `prompt=consent&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `client_id=${encodeURIComponent(googleClientId)}`;
+
+      // Redirect to Google OAuth
+      window.location.href = authUrl;
 
     } catch (error) {
       console.error('Google connection error:', error);
       toast({
         title: "Connection Failed",
-        description: "Failed to connect to Google Calendar",
+        description: "Failed to initiate Google Calendar connection",
         variant: "destructive"
       });
       setIsConnecting(false);
@@ -173,6 +268,33 @@ const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
     }
   };
 
+  const disconnectGoogle = async () => {
+    try {
+      const { error } = await supabase
+        .from('calendar_integrations')
+        .update({ is_enabled: false })
+        .eq('user_id', user?.id)
+        .eq('provider', 'google');
+
+      if (error) throw error;
+
+      setIsConnected(false);
+      setAccessToken(null);
+      
+      toast({
+        title: "Disconnected",
+        description: "Google Calendar has been disconnected"
+      });
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to disconnect Google Calendar",
+        variant: "destructive"
+      });
+    }
+  };
+
   const syncedEvents = detectedEvents.filter(e => e.status === 'synced' && e.external_event_id);
   const pendingEvents = detectedEvents.filter(e => e.status !== 'synced' || !e.external_event_id);
 
@@ -204,18 +326,27 @@ const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
             {isConnecting ? 'Connecting...' : 'Connect Google Calendar'}
           </Button>
         ) : (
-          <Button 
-            onClick={syncEventsToGoogle} 
-            disabled={isSyncing || pendingEvents.length === 0}
-            className="flex items-center gap-2"
-          >
-            {isSyncing ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Calendar className="h-4 w-4" />
-            )}
-            {isSyncing ? 'Syncing...' : `Sync ${pendingEvents.length} Events`}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={syncEventsToGoogle} 
+              disabled={isSyncing || pendingEvents.length === 0}
+              className="flex items-center gap-2"
+            >
+              {isSyncing ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Calendar className="h-4 w-4" />
+              )}
+              {isSyncing ? 'Syncing...' : `Sync ${pendingEvents.length} Events`}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={disconnectGoogle}
+            >
+              Disconnect
+            </Button>
+          </div>
         )}
       </div>
 

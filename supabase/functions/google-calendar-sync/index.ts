@@ -56,7 +56,7 @@ serve(async (req) => {
           code: authCode,
           client_id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
           client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '',
-          redirect_uri: `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-calendar-sync`,
+          redirect_uri: `${req.headers.get('origin')}/calendar`,
           grant_type: 'authorization_code',
         }),
       });
@@ -76,6 +76,19 @@ serve(async (req) => {
           accessToken: tokenData.access_token,
           refreshToken: tokenData.refresh_token,
           expiresIn: tokenData.expires_in,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    if (action === 'get_client_id') {
+      // Return the Google Client ID for frontend use
+      return new Response(
+        JSON.stringify({
+          success: true,
+          clientId: Deno.env.get('GOOGLE_CLIENT_ID') ?? '',
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
