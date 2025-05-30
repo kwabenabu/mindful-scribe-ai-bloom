@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -87,12 +86,16 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
 
     setIsSaving(true);
     try {
-      console.log('Saving events with user_id:', user.id);
+      console.log('Starting event save process...');
+      console.log('User ID:', user.id);
       console.log('Journal entry ID:', journalEntryId);
+      console.log('Selected events:', Array.from(selectedEvents));
       
       const eventsToSave = Array.from(selectedEvents).map(eventId => {
         const event = getEventData(eventId);
-        return {
+        console.log('Processing event:', event);
+        
+        const eventToSave = {
           user_id: user.id,
           journal_entry_id: journalEntryId || null,
           event_title: event.title,
@@ -105,9 +108,12 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
           confidence_score: event.confidence,
           status: 'pending'
         };
+        
+        console.log('Event to save:', eventToSave);
+        return eventToSave;
       });
 
-      console.log('Events to save:', eventsToSave);
+      console.log('All events to save:', eventsToSave);
 
       const { data, error } = await supabase
         .from('detected_events')
@@ -115,14 +121,20 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
         .select();
 
       if (error) {
-        console.error('Database error:', error);
+        console.error('Database insert error:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         throw error;
       }
 
-      console.log('Successfully saved events:', data);
+      console.log('Successfully saved events to database:', data);
 
       // Transform the data to match GoogleCalendarSync expected format
-      setSavedEvents(data.map(event => ({
+      const transformedEvents = data.map(event => ({
         id: event.id,
         event_title: event.event_title,
         event_description: event.event_description,
@@ -133,7 +145,9 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
         location: event.location,
         status: event.status,
         external_event_id: event.external_event_id
-      })));
+      }));
+
+      setSavedEvents(transformedEvents);
 
       toast({
         title: "Events Saved",
@@ -141,10 +155,12 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
       });
 
     } catch (error) {
-      console.error('Error saving detected events:', error);
+      console.error('Comprehensive error details:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
       toast({
-        title: "Error",
-        description: `Failed to save detected events: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        title: "Error Saving Events",
+        description: `Failed to save detected events: ${errorMessage}`,
         variant: "destructive"
       });
     } finally {

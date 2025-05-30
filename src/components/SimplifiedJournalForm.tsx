@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,13 +25,18 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
   const { toast } = useToast();
 
   const handleSubmit = async () => {
-    if (!user || !content.trim()) return;
+    if (!user || !content.trim()) {
+      console.log('Missing user or content:', { user: !!user, content: content.trim() });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      console.log('Starting journal entry submission...');
+      
       // Detect events from the content before saving
       const eventDetection = detectEventsFromText(content.trim());
-      console.log('Detected events:', eventDetection);
+      console.log('Event detection result:', eventDetection);
 
       const { data: journalData, error } = await supabase
         .from('journals')
@@ -43,8 +47,13 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Journal insert error:', error);
+        throw error;
+      }
 
+      console.log('Journal saved successfully:', journalData);
+      
       setContent('');
       toast({
         title: "Entry Saved",
@@ -68,7 +77,7 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
       console.error('Error saving journal entry:', error);
       toast({
         title: "Error",
-        description: "Failed to save journal entry",
+        description: `Failed to save journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
