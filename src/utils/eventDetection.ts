@@ -43,6 +43,59 @@ const parseTimeToStandardFormat = (timeStr: string): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
 };
 
+const parseToProperDate = (dateStr: string): string => {
+  const now = new Date();
+  let targetDate = new Date(now);
+  
+  const lowerDateStr = dateStr.toLowerCase().trim();
+  
+  // Handle various date formats
+  if (lowerDateStr === 'today') {
+    // Keep today's date
+    return targetDate.toISOString().split('T')[0];
+  } else if (lowerDateStr === 'tomorrow') {
+    targetDate.setDate(now.getDate() + 1);
+    return targetDate.toISOString().split('T')[0];
+  } else if (lowerDateStr === 'yesterday') {
+    targetDate.setDate(now.getDate() - 1);
+    return targetDate.toISOString().split('T')[0];
+  } else if (lowerDateStr === 'tonight') {
+    // Tonight is still today
+    return targetDate.toISOString().split('T')[0];
+  } else if (lowerDateStr.includes('next week')) {
+    targetDate.setDate(now.getDate() + 7);
+    return targetDate.toISOString().split('T')[0];
+  } else if (lowerDateStr.includes('this week')) {
+    return targetDate.toISOString().split('T')[0];
+  }
+  
+  // Handle day names
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayIndex = dayNames.findIndex(day => lowerDateStr.includes(day));
+  
+  if (dayIndex !== -1) {
+    // Set to next occurrence of this day
+    const currentDay = now.getDay();
+    const daysAhead = (dayIndex - currentDay + 7) % 7 || 7;
+    targetDate.setDate(now.getDate() + daysAhead);
+    return targetDate.toISOString().split('T')[0];
+  }
+  
+  // If it's just a number like "1", assume it means today (common parsing error)
+  if (/^\d+$/.test(lowerDateStr)) {
+    return targetDate.toISOString().split('T')[0];
+  }
+  
+  // Try to parse as a regular date
+  const parsedDate = new Date(dateStr);
+  if (!isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString().split('T')[0];
+  }
+  
+  // Default to today if we can't parse it
+  return targetDate.toISOString().split('T')[0];
+};
+
 export const detectEventsFromText = (text: string): EventDetectionResult => {
   const events: DetectedEvent[] = [];
   const content = text.toLowerCase();
@@ -57,7 +110,7 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
   // Date patterns
   const datePatterns = [
     /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/gi,
-    /(tomorrow|today|tonight)/gi,
+    /(tomorrow|today|tonight|yesterday)/gi,
     /(next week|this week)/gi,
     /(\d{1,2}(?:st|nd|rd|th)?(?:\s+(?:january|february|march|april|may|june|july|august|september|october|november|december))?)/gi
   ];
@@ -74,9 +127,10 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
     { words: ['class', 'training', 'workshop'], confidence: 0.8 }
   ];
 
-  // Location patterns
+  // Location patterns - fixed to return proper strings
   const locationPatterns = [
     /(?:at|in|@)\s+([A-Z][a-zA-Z\s]+(?:Restaurant|Cafe|Office|Building|Center|Park|Hospital|Clinic))/gi,
+    /(?:at|in|@)\s+the\s+([a-zA-Z\s]{2,30})/gi,
     /(?:at|in|@)\s+([A-Z][a-zA-Z\s]{2,20})/gi
   ];
 
@@ -93,10 +147,11 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
           let timeMatch = null;
           let timeStr = '';
           for (const pattern of timePatterns) {
+            pattern.lastIndex = 0; // Reset regex
             const match = pattern.exec(sentence);
             if (match) {
               timeMatch = match;
-              timeStr = parseTimeToStandardFormat(match[1]); // Parse to standard format
+              timeStr = parseTimeToStandardFormat(match[1]);
               break;
             }
           }
@@ -105,6 +160,7 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
           let dateMatch = null;
           let dateStr = '';
           for (const pattern of datePatterns) {
+            pattern.lastIndex = 0; // Reset regex
             const match = pattern.exec(sentence);
             if (match) {
               dateMatch = match;
@@ -113,14 +169,15 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
             }
           }
 
-          // Extract location
+          // Extract location - fixed to return proper strings
           let locationMatch = null;
           let locationStr = '';
           for (const pattern of locationPatterns) {
+            pattern.lastIndex = 0; // Reset regex
             const match = pattern.exec(sentence);
             if (match) {
               locationMatch = match;
-              locationStr = match[1];
+              locationStr = match[1] ? match[1].trim() : '';
               break;
             }
           }
@@ -139,11 +196,14 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
 
           // Only add events with reasonable confidence
           if (confidence >= 0.7) {
+            // Convert date to proper format if found
+            const properDate = dateStr ? parseToProperDate(dateStr) : undefined;
+            
             const event: DetectedEvent = {
               id: `event_${sentenceIndex}_${events.length}`,
               title: eventTitle,
               description: sentence.trim(),
-              date: dateStr || undefined,
+              date: properDate,
               time: timeStr || undefined,
               location: locationStr || undefined,
               duration: getDefaultDuration(keyword),
@@ -152,9 +212,9 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
               endIndex: text.indexOf(sentence) + sentence.length
             };
 
-            // Try to parse datetime
-            if (dateStr && timeStr) {
-              event.datetime = parseDateTime(dateStr, timeStr);
+            // Try to parse datetime if we have both date and time
+            if (properDate && timeStr) {
+              event.datetime = parseDateTime(properDate, timeStr);
             }
 
             events.push(event);
@@ -214,34 +274,16 @@ const getDefaultDuration = (eventType: string): number => {
 };
 
 const parseDateTime = (dateStr: string, timeStr: string): string => {
-  const now = new Date();
-  let targetDate = new Date(now);
+  // Combine the date string (YYYY-MM-DD) with the time string (HH:MM:SS)
+  const dateTimeStr = `${dateStr}T${timeStr}`;
+  const targetDate = new Date(dateTimeStr);
   
-  // Parse date
-  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const dayIndex = dayNames.findIndex(day => dateStr.toLowerCase().includes(day));
-  
-  if (dayIndex !== -1) {
-    // Set to next occurrence of this day
-    const currentDay = now.getDay();
-    const daysAhead = (dayIndex - currentDay + 7) % 7 || 7;
-    targetDate.setDate(now.getDate() + daysAhead);
-  } else if (dateStr.toLowerCase().includes('tomorrow')) {
-    targetDate.setDate(now.getDate() + 1);
-  } else if (dateStr.toLowerCase().includes('today') || dateStr.toLowerCase().includes('tonight')) {
-    // Keep today's date
+  if (!isNaN(targetDate.getTime())) {
+    return targetDate.toISOString();
   }
   
-  // Parse time using the standard format time
-  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
-  if (timeMatch) {
-    const hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2]);
-    
-    targetDate.setHours(hours, minutes, 0, 0);
-  }
-  
-  return targetDate.toISOString();
+  // Fallback if parsing fails
+  return new Date().toISOString();
 };
 
 const removeDuplicateEvents = (events: DetectedEvent[]): DetectedEvent[] => {
