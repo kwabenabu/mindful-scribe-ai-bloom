@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,44 +10,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Settings, Clock, ExternalLink, CheckCircle, AlertCircle, Copy } from 'lucide-react';
-import GoogleCalendarSync from './GoogleCalendarSync';
+import { Calendar, Clock } from 'lucide-react';
 
 interface CalendarSettings {
-  google_calendar_enabled: boolean;
-  outlook_calendar_enabled: boolean;
   default_meeting_duration: number;
   auto_add_events: boolean;
   timezone: string;
 }
 
-interface GoogleCalendarConnection {
-  isConnected: boolean;
-  accessToken: string | null;
-  expiresAt: string | null;
-}
-
 const CalendarSettings = () => {
   const [settings, setSettings] = useState<CalendarSettings>({
-    google_calendar_enabled: false,
-    outlook_calendar_enabled: false,
     default_meeting_duration: 30,
-    auto_add_events: true,
+    auto_add_events: false, // Disabled by default
     timezone: 'UTC'
-  });
-  const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection>({
-    isConnected: false,
-    accessToken: null,
-    expiresAt: null
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [googleClientId, setGoogleClientId] = useState<string>('');
-  const [debugInfo, setDebugInfo] = useState<{
-    currentUrl: string;
-    redirectUri: string;
-    authUrl: string;
-  } | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -64,97 +43,6 @@ const CalendarSettings = () => {
     'Australia/Sydney'
   ];
 
-  const fetchGoogleClientId = async () => {
-    try {
-      console.log('Fetching Google Client ID...');
-      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
-        body: { action: 'get_client_id' }
-      });
-
-      console.log('Client ID response:', data, error);
-      
-      if (error) {
-        console.error('Error fetching client ID:', error);
-        throw error;
-      }
-      
-      if (data.success) {
-        console.log('Successfully got client ID:', data.clientId);
-        setGoogleClientId(data.clientId);
-      } else {
-        console.error('Failed to get client ID:', data);
-        toast({
-          title: "Configuration Error",
-          description: "Failed to retrieve Google Client ID",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch Google Client ID:', error);
-      toast({
-        title: "Configuration Error",
-        description: "Failed to connect to Google Calendar service",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const checkGoogleConnection = async () => {
-    if (!user) return;
-
-    try {
-      console.log('Checking Google connection for user:', user.id);
-      const { data, error } = await supabase
-        .from('calendar_integrations')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('provider', 'google')
-        .eq('is_enabled', true)
-        .single();
-
-      console.log('Connection check result:', data, error);
-
-      if (data && !error) {
-        console.log('Found active Google connection');
-        setGoogleConnection({
-          isConnected: true,
-          accessToken: data.access_token,
-          expiresAt: data.expires_at
-        });
-        
-        // Update the settings to reflect actual connection status
-        setSettings(prev => ({ 
-          ...prev, 
-          google_calendar_enabled: true 
-        }));
-      } else {
-        console.log('No active Google connection found');
-        setGoogleConnection({
-          isConnected: false,
-          accessToken: null,
-          expiresAt: null
-        });
-        
-        // Update the settings to reflect disconnected status
-        setSettings(prev => ({ 
-          ...prev, 
-          google_calendar_enabled: false 
-        }));
-      }
-    } catch (error) {
-      console.log('Error checking Google Calendar connection:', error);
-      setGoogleConnection({
-        isConnected: false,
-        accessToken: null,
-        expiresAt: null
-      });
-      setSettings(prev => ({ 
-        ...prev, 
-        google_calendar_enabled: false 
-      }));
-    }
-  };
-
   const fetchSettings = async () => {
     if (!user) return;
 
@@ -170,14 +58,11 @@ const CalendarSettings = () => {
       }
 
       if (data) {
-        setSettings(prev => ({
-          ...prev,
-          outlook_calendar_enabled: data.outlook_calendar_enabled || false,
+        setSettings({
           default_meeting_duration: data.default_meeting_duration || 30,
-          auto_add_events: data.auto_add_events !== false,
+          auto_add_events: false, // Force disabled
           timezone: data.timezone || 'UTC'
-          // Don't override google_calendar_enabled here as it's set by checkGoogleConnection
-        }));
+        });
       }
     } catch (error) {
       console.error('Error fetching calendar settings:', error);
@@ -189,189 +74,6 @@ const CalendarSettings = () => {
     }
   };
 
-  const generateDebugInfo = () => {
-    if (!googleClientId) return;
-
-    const currentUrl = window.location.origin;
-    const redirectUri = `${currentUrl}${window.location.pathname}`;
-    const scope = 'https://www.googleapis.com/auth/calendar';
-    
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `response_type=code&` +
-      `access_type=offline&` +
-      `prompt=consent&` +
-      `scope=${encodeURIComponent(scope)}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `client_id=${encodeURIComponent(googleClientId)}`;
-
-    setDebugInfo({
-      currentUrl,
-      redirectUri,
-      authUrl
-    });
-
-    console.log('Debug Info Generated:');
-    console.log('Current URL:', currentUrl);
-    console.log('Redirect URI:', redirectUri);
-    console.log('Auth URL:', authUrl);
-    console.log('Client ID:', googleClientId);
-  };
-
-  const copyDebugInfo = () => {
-    if (!debugInfo) return;
-    
-    const info = `Google OAuth Debug Information:
-Current URL: ${debugInfo.currentUrl}
-Redirect URI: ${debugInfo.redirectUri}
-Client ID: ${googleClientId}
-Auth URL: ${debugInfo.authUrl}`;
-    
-    navigator.clipboard.writeText(info);
-    toast({
-      title: "Debug Info Copied",
-      description: "OAuth debug information copied to clipboard"
-    });
-  };
-
-  const testGoogleConnection = async () => {
-    console.log('Testing Google connection...');
-    console.log('Current googleClientId:', googleClientId);
-    console.log('User:', user?.id);
-    
-    if (!googleClientId) {
-      console.log('No Google Client ID available');
-      toast({
-        title: "Configuration Error",
-        description: "Google Client ID not configured",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      // Test the edge function endpoint
-      console.log('Testing edge function connectivity...');
-      const testResponse = await supabase.functions.invoke('google-calendar-sync', {
-        body: { action: 'get_client_id' }
-      });
-      
-      console.log('Edge function test response:', testResponse);
-      
-      if (testResponse.error) {
-        throw new Error(`Edge function error: ${testResponse.error.message}`);
-      }
-      
-      // Generate debug info for troubleshooting
-      generateDebugInfo();
-      
-      toast({
-        title: "Connection Test Passed",
-        description: "Google Calendar service is reachable. Debug info generated below.",
-      });
-    } catch (error) {
-      console.error('Connection test failed:', error);
-      toast({
-        title: "Connection Test Failed",
-        description: `Unable to reach Google Calendar service: ${error.message}`,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const initiateGoogleAuth = async () => {
-    if (!googleClientId) {
-      toast({
-        title: "Configuration Error",
-        description: "Google Client ID not configured",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      console.log('Initiating Google OAuth...');
-      const redirectUri = `${window.location.origin}${window.location.pathname}`;
-      console.log('Redirect URI:', redirectUri);
-      
-      const scope = 'https://www.googleapis.com/auth/calendar';
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `response_type=code&` +
-        `access_type=offline&` +
-        `prompt=consent&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `client_id=${encodeURIComponent(googleClientId)}`;
-
-      console.log('Auth URL:', authUrl);
-      
-      // Show a warning about potential 403 errors
-      toast({
-        title: "Redirecting to Google",
-        description: "If you encounter a 403 error, please check the troubleshooting info below.",
-      });
-      
-      // Add a small delay to ensure the toast is shown
-      setTimeout(() => {
-        window.location.href = authUrl;
-      }, 1000);
-
-    } catch (error) {
-      console.error('Google connection error:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to initiate Google Calendar connection",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const disconnectGoogle = async () => {
-    try {
-      const { error } = await supabase
-        .from('calendar_integrations')
-        .update({ is_enabled: false })
-        .eq('user_id', user?.id)
-        .eq('provider', 'google');
-
-      if (error) throw error;
-
-      setGoogleConnection({
-        isConnected: false,
-        accessToken: null,
-        expiresAt: null
-      });
-      
-      setSettings(prev => ({ 
-        ...prev, 
-        google_calendar_enabled: false 
-      }));
-      
-      toast({
-        title: "Disconnected",
-        description: "Google Calendar has been disconnected"
-      });
-    } catch (error) {
-      console.error('Disconnect error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to disconnect Google Calendar",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleGoogleToggle = async (checked: boolean) => {
-    if (checked && !googleConnection.isConnected) {
-      // User wants to enable Google Calendar but it's not connected
-      await initiateGoogleAuth();
-    } else if (!checked && googleConnection.isConnected) {
-      // User wants to disable Google Calendar and it's currently connected
-      await disconnectGoogle();
-    }
-    // If it's already in the desired state, do nothing
-  };
-
   const saveSettings = async () => {
     if (!user) return;
 
@@ -381,10 +83,10 @@ Auth URL: ${debugInfo.authUrl}`;
         .from('user_calendar_settings')
         .upsert({
           user_id: user.id,
-          google_calendar_enabled: settings.google_calendar_enabled,
-          outlook_calendar_enabled: settings.outlook_calendar_enabled,
+          google_calendar_enabled: false,
+          outlook_calendar_enabled: false,
           default_meeting_duration: settings.default_meeting_duration,
-          auto_add_events: settings.auto_add_events,
+          auto_add_events: false, // Always save as false
           timezone: settings.timezone,
           updated_at: new Date().toISOString()
         });
@@ -407,81 +109,10 @@ Auth URL: ${debugInfo.authUrl}`;
     }
   };
 
-  const handleOAuthCallback = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    
-    if (code && !googleConnection.isConnected) {
-      exchangeCodeForTokens(code);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
-
-  const exchangeCodeForTokens = async (authCode: string) => {
-    try {
-      console.log('Exchanging auth code for tokens...');
-      const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
-        body: {
-          action: 'auth',
-          authCode: authCode
-        }
-      });
-
-      console.log('Token exchange response:', data, error);
-
-      if (error) throw error;
-
-      if (data.success) {
-        // Store tokens in calendar_integrations table
-        const { error: insertError } = await supabase
-          .from('calendar_integrations')
-          .upsert({
-            user_id: user?.id,
-            provider: 'google',
-            access_token: data.accessToken,
-            refresh_token: data.refreshToken,
-            expires_at: new Date(Date.now() + data.expiresIn * 1000).toISOString(),
-            is_enabled: true
-          });
-
-        if (insertError) throw insertError;
-
-        setGoogleConnection({
-          isConnected: true,
-          accessToken: data.accessToken,
-          expiresAt: new Date(Date.now() + data.expiresIn * 1000).toISOString()
-        });
-        
-        setSettings(prev => ({ 
-          ...prev, 
-          google_calendar_enabled: true 
-        }));
-        
-        toast({
-          title: "Connected!",
-          description: "Successfully connected to Google Calendar"
-        });
-      }
-    } catch (error) {
-      console.error('OAuth exchange error:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Google Calendar",
-        variant: "destructive"
-      });
-    }
-  };
-
   useEffect(() => {
     const initializeSettings = async () => {
       setIsLoading(true);
-      await Promise.all([
-        fetchGoogleClientId(),
-        checkGoogleConnection(),
-        fetchSettings()
-      ]);
-      handleOAuthCallback();
+      await fetchSettings();
       setIsLoading(false);
     };
 
@@ -505,212 +136,84 @@ Auth URL: ${debugInfo.authUrl}`;
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5" />
-          Calendar Integration Settings
+          Calendar Settings
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="general">General Settings</TabsTrigger>
-            <TabsTrigger value="sync">Calendar Sync</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="general" className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="google-calendar" className="flex items-center gap-2">
-                    Google Calendar
-                    {googleConnection.isConnected ? (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Label>
-                  <p className="text-sm text-gray-500">
-                    {googleConnection.isConnected 
-                      ? "Connected and enabled for automatic event creation"
-                      : "Enable automatic event creation in Google Calendar"
-                    }
-                  </p>
-                </div>
-                <Switch
-                  id="google-calendar"
-                  checked={settings.google_calendar_enabled && googleConnection.isConnected}
-                  onCheckedChange={handleGoogleToggle}
-                />
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between opacity-50">
+              <div className="space-y-0.5">
+                <Label htmlFor="auto-add" className="text-gray-400">Auto-add Events</Label>
+                <p className="text-sm text-gray-400">
+                  Automatically add detected events without confirmation (disabled)
+                </p>
               </div>
+              <Switch
+                id="auto-add"
+                checked={false}
+                disabled={true}
+              />
+            </div>
+          </div>
 
-              {/* Test Connection Button */}
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={testGoogleConnection}
-                  className="flex items-center gap-2"
-                >
-                  <Settings className="h-4 w-4" />
-                  Test Connection & Generate Debug Info
-                </Button>
-                {googleClientId && (
-                  <span className="text-xs text-gray-500">
-                    Client ID configured
-                  </span>
-                )}
-              </div>
-
-              {/* Debug Information Panel */}
-              {debugInfo && (
-                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">OAuth Debug Information</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={copyDebugInfo}
-                      className="flex items-center gap-1"
-                    >
-                      <Copy className="h-3 w-3" />
-                      Copy All
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="font-medium">Current URL:</span>
-                      <div className="font-mono bg-white p-1 rounded border break-all">
-                        {debugInfo.currentUrl}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="font-medium">Redirect URI:</span>
-                      <div className="font-mono bg-white p-1 rounded border break-all">
-                        {debugInfo.redirectUri}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="font-medium">Client ID:</span>
-                      <div className="font-mono bg-white p-1 rounded border break-all">
-                        {googleClientId}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
-                    <p className="font-medium text-yellow-800 mb-1">Troubleshooting 403 Errors:</p>
-                    <ul className="text-yellow-700 space-y-1">
-                      <li>• Ensure your Google Cloud project is in Production mode</li>
-                      <li>• Verify the redirect URI above is added to your Google Cloud Console</li>
-                      <li>• Check that your OAuth consent screen is properly configured</li>
-                      <li>• Make sure the authorized domains include your current domain</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="outlook-calendar">Outlook Calendar</Label>
-                  <p className="text-sm text-gray-500">
-                    Enable automatic event creation in Outlook Calendar
-                  </p>
-                </div>
-                <Switch
-                  id="outlook-calendar"
-                  checked={settings.outlook_calendar_enabled}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => ({ ...prev, outlook_calendar_enabled: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="auto-add">Auto-add Events</Label>
-                  <p className="text-sm text-gray-500">
-                    Automatically add detected events without confirmation
-                  </p>
-                </div>
-                <Switch
-                  id="auto-add"
-                  checked={settings.auto_add_events}
-                  onCheckedChange={(checked) =>
-                    setSettings(prev => ({ ...prev, auto_add_events: checked }))
-                  }
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="duration" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Default Meeting Duration (minutes)
+              </Label>
+              <Input
+                id="duration"
+                type="number"
+                min="15"
+                max="480"
+                step="15"
+                value={settings.default_meeting_duration}
+                onChange={(e) =>
+                  setSettings(prev => ({ 
+                    ...prev, 
+                    default_meeting_duration: parseInt(e.target.value) || 30 
+                  }))
+                }
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="duration" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Default Meeting Duration (minutes)
-                </Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="15"
-                  max="480"
-                  step="15"
-                  value={settings.default_meeting_duration}
-                  onChange={(e) =>
-                    setSettings(prev => ({ 
-                      ...prev, 
-                      default_meeting_duration: parseInt(e.target.value) || 30 
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select
-                  value={settings.timezone}
-                  onValueChange={(value) =>
-                    setSettings(prev => ({ ...prev, timezone: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timezones.map((tz) => (
-                      <SelectItem key={tz} value={tz}>
-                        {tz}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  checkGoogleConnection();
-                  fetchSettings();
-                }} 
-                disabled={isSaving}
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Select
+                value={settings.timezone}
+                onValueChange={(value) =>
+                  setSettings(prev => ({ ...prev, timezone: value }))
+                }
               >
-                Reset
-              </Button>
-              <Button onClick={saveSettings} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Settings'}
-              </Button>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {timezones.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="sync" className="space-y-6">
-            <GoogleCalendarSync 
-              detectedEvents={[]}
-              onSyncComplete={() => {}}
-            />
-          </TabsContent>
-        </Tabs>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={fetchSettings}
+              disabled={isSaving}
+            >
+              Reset
+            </Button>
+            <Button onClick={saveSettings} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

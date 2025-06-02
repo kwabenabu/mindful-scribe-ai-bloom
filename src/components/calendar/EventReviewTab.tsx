@@ -69,7 +69,7 @@ const EventReviewTab: React.FC<EventReviewTabProps> = ({
             onClick={onConfirmEvents} 
             disabled={selectedEvents.size === 0 || isSaving}
           >
-            {isSaving ? 'Saving...' : `Confirm ${selectedEvents.size} Events`}
+            {isSaving ? 'Saving...' : `Save ${selectedEvents.size} Events`}
           </Button>
         </div>
       </div>
