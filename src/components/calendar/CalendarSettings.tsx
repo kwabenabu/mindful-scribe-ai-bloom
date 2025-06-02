@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,16 +61,36 @@ const CalendarSettings = () => {
 
   const fetchGoogleClientId = async () => {
     try {
+      console.log('Fetching Google Client ID...');
       const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
         body: { action: 'get_client_id' }
       });
 
-      if (error) throw error;
+      console.log('Client ID response:', data, error);
+      
+      if (error) {
+        console.error('Error fetching client ID:', error);
+        throw error;
+      }
+      
       if (data.success) {
+        console.log('Successfully got client ID:', data.clientId);
         setGoogleClientId(data.clientId);
+      } else {
+        console.error('Failed to get client ID:', data);
+        toast({
+          title: "Configuration Error",
+          description: "Failed to retrieve Google Client ID",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Failed to fetch Google Client ID:', error);
+      toast({
+        title: "Configuration Error",
+        description: "Failed to connect to Google Calendar service",
+        variant: "destructive"
+      });
     }
   };
 
@@ -79,6 +98,7 @@ const CalendarSettings = () => {
     if (!user) return;
 
     try {
+      console.log('Checking Google connection for user:', user.id);
       const { data, error } = await supabase
         .from('calendar_integrations')
         .select('*')
@@ -87,7 +107,10 @@ const CalendarSettings = () => {
         .eq('is_enabled', true)
         .single();
 
+      console.log('Connection check result:', data, error);
+
       if (data && !error) {
+        console.log('Found active Google connection');
         setGoogleConnection({
           isConnected: true,
           accessToken: data.access_token,
@@ -100,6 +123,7 @@ const CalendarSettings = () => {
           google_calendar_enabled: true 
         }));
       } else {
+        console.log('No active Google connection found');
         setGoogleConnection({
           isConnected: false,
           accessToken: null,
@@ -113,7 +137,7 @@ const CalendarSettings = () => {
         }));
       }
     } catch (error) {
-      console.log('No Google Calendar connection found');
+      console.log('Error checking Google Calendar connection:', error);
       setGoogleConnection({
         isConnected: false,
         accessToken: null,
@@ -160,6 +184,48 @@ const CalendarSettings = () => {
     }
   };
 
+  const testGoogleConnection = async () => {
+    console.log('Testing Google connection...');
+    console.log('Current googleClientId:', googleClientId);
+    console.log('User:', user?.id);
+    
+    if (!googleClientId) {
+      console.log('No Google Client ID available');
+      toast({
+        title: "Configuration Error",
+        description: "Google Client ID not configured",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Test the edge function endpoint
+      console.log('Testing edge function connectivity...');
+      const testResponse = await supabase.functions.invoke('google-calendar-sync', {
+        body: { action: 'get_client_id' }
+      });
+      
+      console.log('Edge function test response:', testResponse);
+      
+      if (testResponse.error) {
+        throw new Error(`Edge function error: ${testResponse.error.message}`);
+      }
+      
+      toast({
+        title: "Connection Test",
+        description: "Google Calendar service is reachable. Client ID configured successfully.",
+      });
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      toast({
+        title: "Connection Test Failed",
+        description: `Unable to reach Google Calendar service: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   const initiateGoogleAuth = async () => {
     if (!googleClientId) {
       toast({
@@ -171,7 +237,10 @@ const CalendarSettings = () => {
     }
 
     try {
+      console.log('Initiating Google OAuth...');
       const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      console.log('Redirect URI:', redirectUri);
+      
       const scope = 'https://www.googleapis.com/auth/calendar';
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -182,6 +251,8 @@ const CalendarSettings = () => {
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `client_id=${encodeURIComponent(googleClientId)}`;
 
+      console.log('Auth URL:', authUrl);
+      
       // Redirect to Google OAuth
       window.location.href = authUrl;
 
@@ -289,12 +360,15 @@ const CalendarSettings = () => {
 
   const exchangeCodeForTokens = async (authCode: string) => {
     try {
+      console.log('Exchanging auth code for tokens...');
       const { data, error } = await supabase.functions.invoke('google-calendar-sync', {
         body: {
           action: 'auth',
           authCode: authCode
         }
       });
+
+      console.log('Token exchange response:', data, error);
 
       if (error) throw error;
 
@@ -405,6 +479,24 @@ const CalendarSettings = () => {
                   checked={settings.google_calendar_enabled && googleConnection.isConnected}
                   onCheckedChange={handleGoogleToggle}
                 />
+              </div>
+
+              {/* Test Connection Button */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={testGoogleConnection}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Test Google Connection
+                </Button>
+                {googleClientId && (
+                  <span className="text-xs text-gray-500">
+                    Client ID configured
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center justify-between">
