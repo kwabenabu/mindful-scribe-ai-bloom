@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Settings, Clock, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
+import { Calendar, Settings, Clock, ExternalLink, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 import GoogleCalendarSync from './GoogleCalendarSync';
 
 interface CalendarSettings {
@@ -42,6 +42,11 @@ const CalendarSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string>('');
+  const [debugInfo, setDebugInfo] = useState<{
+    currentUrl: string;
+    redirectUri: string;
+    authUrl: string;
+  } | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -184,6 +189,50 @@ const CalendarSettings = () => {
     }
   };
 
+  const generateDebugInfo = () => {
+    if (!googleClientId) return;
+
+    const currentUrl = window.location.origin;
+    const redirectUri = `${currentUrl}${window.location.pathname}`;
+    const scope = 'https://www.googleapis.com/auth/calendar';
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `response_type=code&` +
+      `access_type=offline&` +
+      `prompt=consent&` +
+      `scope=${encodeURIComponent(scope)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `client_id=${encodeURIComponent(googleClientId)}`;
+
+    setDebugInfo({
+      currentUrl,
+      redirectUri,
+      authUrl
+    });
+
+    console.log('Debug Info Generated:');
+    console.log('Current URL:', currentUrl);
+    console.log('Redirect URI:', redirectUri);
+    console.log('Auth URL:', authUrl);
+    console.log('Client ID:', googleClientId);
+  };
+
+  const copyDebugInfo = () => {
+    if (!debugInfo) return;
+    
+    const info = `Google OAuth Debug Information:
+Current URL: ${debugInfo.currentUrl}
+Redirect URI: ${debugInfo.redirectUri}
+Client ID: ${googleClientId}
+Auth URL: ${debugInfo.authUrl}`;
+    
+    navigator.clipboard.writeText(info);
+    toast({
+      title: "Debug Info Copied",
+      description: "OAuth debug information copied to clipboard"
+    });
+  };
+
   const testGoogleConnection = async () => {
     console.log('Testing Google connection...');
     console.log('Current googleClientId:', googleClientId);
@@ -212,9 +261,12 @@ const CalendarSettings = () => {
         throw new Error(`Edge function error: ${testResponse.error.message}`);
       }
       
+      // Generate debug info for troubleshooting
+      generateDebugInfo();
+      
       toast({
-        title: "Connection Test",
-        description: "Google Calendar service is reachable. Client ID configured successfully.",
+        title: "Connection Test Passed",
+        description: "Google Calendar service is reachable. Debug info generated below.",
       });
     } catch (error) {
       console.error('Connection test failed:', error);
@@ -253,8 +305,16 @@ const CalendarSettings = () => {
 
       console.log('Auth URL:', authUrl);
       
-      // Redirect to Google OAuth
-      window.location.href = authUrl;
+      // Show a warning about potential 403 errors
+      toast({
+        title: "Redirecting to Google",
+        description: "If you encounter a 403 error, please check the troubleshooting info below.",
+      });
+      
+      // Add a small delay to ensure the toast is shown
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 1000);
 
     } catch (error) {
       console.error('Google connection error:', error);
@@ -490,7 +550,7 @@ const CalendarSettings = () => {
                   className="flex items-center gap-2"
                 >
                   <Settings className="h-4 w-4" />
-                  Test Google Connection
+                  Test Connection & Generate Debug Info
                 </Button>
                 {googleClientId && (
                   <span className="text-xs text-gray-500">
@@ -498,6 +558,57 @@ const CalendarSettings = () => {
                   </span>
                 )}
               </div>
+
+              {/* Debug Information Panel */}
+              {debugInfo && (
+                <div className="bg-gray-50 border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">OAuth Debug Information</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyDebugInfo}
+                      className="flex items-center gap-1"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy All
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="font-medium">Current URL:</span>
+                      <div className="font-mono bg-white p-1 rounded border break-all">
+                        {debugInfo.currentUrl}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="font-medium">Redirect URI:</span>
+                      <div className="font-mono bg-white p-1 rounded border break-all">
+                        {debugInfo.redirectUri}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="font-medium">Client ID:</span>
+                      <div className="font-mono bg-white p-1 rounded border break-all">
+                        {googleClientId}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
+                    <p className="font-medium text-yellow-800 mb-1">Troubleshooting 403 Errors:</p>
+                    <ul className="text-yellow-700 space-y-1">
+                      <li>• Ensure your Google Cloud project is in Production mode</li>
+                      <li>• Verify the redirect URI above is added to your Google Cloud Console</li>
+                      <li>• Check that your OAuth consent screen is properly configured</li>
+                      <li>• Make sure the authorized domains include your current domain</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
