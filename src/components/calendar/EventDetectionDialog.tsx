@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from 'lucide-react';
 import GoogleCalendarSync from './GoogleCalendarSync';
 import EventReviewTab from './EventReviewTab';
+import EmailInviteDialog from './EmailInviteDialog';
 import type { DetectedEvent } from '@/utils/eventDetection';
 
 interface EventDetectionDialogProps {
@@ -47,6 +48,7 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
     status?: string;
     external_event_id?: string;
   }>>([]);
+  const [showEmailInvite, setShowEmailInvite] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -133,7 +135,7 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
 
       console.log('Successfully saved events to database:', data);
 
-      // Transform the data to match GoogleCalendarSync expected format
+      // Transform the data to match expected format
       const transformedEvents = data.map(event => ({
         id: event.id,
         event_title: event.event_title,
@@ -173,51 +175,84 @@ const EventDetectionDialog: React.FC<EventDetectionDialogProps> = ({
     onClose();
   };
 
+  const handleEmailInviteComplete = () => {
+    setShowEmailInvite(false);
+    onEventsConfirmed();
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Events Detected in Your Journal Entry
-          </DialogTitle>
-          <DialogDescription>
-            We found {detectedEvents.length} potential events in your journal entry. 
-            Review and select which events you'd like to add to your calendar.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Events Detected in Your Journal Entry
+            </DialogTitle>
+            <DialogDescription>
+              We found {detectedEvents.length} potential events in your journal entry. 
+              Review and select which events you'd like to add to your calendar.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Tabs defaultValue="review" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="review">Review Events</TabsTrigger>
-            <TabsTrigger value="sync" disabled={savedEvents.length === 0}>
-              Calendar Sync
-            </TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="review" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="review">Review Events</TabsTrigger>
+              <TabsTrigger value="sync" disabled={savedEvents.length === 0}>
+                Google Calendar
+              </TabsTrigger>
+              <TabsTrigger value="email" disabled={savedEvents.length === 0}>
+                Email Invites
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="review" className="space-y-4">
-            <EventReviewTab
-              detectedEvents={detectedEvents}
-              selectedEvents={selectedEvents}
-              editingEvents={editingEvents}
-              isSaving={isSaving}
-              onEventToggle={handleEventToggle}
-              onEventEdit={handleEventEdit}
-              onConfirmEvents={handleConfirmEvents}
-              onClose={onClose}
-              getEventData={getEventData}
-            />
-          </TabsContent>
+            <TabsContent value="review" className="space-y-4">
+              <EventReviewTab
+                detectedEvents={detectedEvents}
+                selectedEvents={selectedEvents}
+                editingEvents={editingEvents}
+                isSaving={isSaving}
+                onEventToggle={setSelectedEvents}
+                onEventEdit={handleEventEdit}
+                onConfirmEvents={handleConfirmEvents}
+                onClose={onClose}
+                getEventData={getEventData}
+              />
+            </TabsContent>
 
-          <TabsContent value="sync" className="space-y-4">
-            <GoogleCalendarSync 
-              detectedEvents={savedEvents}
-              onSyncComplete={handleSyncComplete}
-            />
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+            <TabsContent value="sync" className="space-y-4">
+              <GoogleCalendarSync 
+                detectedEvents={savedEvents}
+                onSyncComplete={handleSyncComplete}
+              />
+            </TabsContent>
+
+            <TabsContent value="email" className="space-y-4">
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 mx-auto text-blue-500 mb-4" />
+                <h3 className="text-lg font-medium mb-2">Send Calendar Invites via Email</h3>
+                <p className="text-gray-600 mb-6">
+                  Send calendar invites that work with any calendar app - Google Calendar, Outlook, Apple Calendar, and more!
+                </p>
+                <button
+                  onClick={() => setShowEmailInvite(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Send Email Invites
+                </button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <EmailInviteDialog
+        isOpen={showEmailInvite}
+        onClose={handleEmailInviteComplete}
+        detectedEvents={savedEvents}
+      />
+    </>
   );
 };
 

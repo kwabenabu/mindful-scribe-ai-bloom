@@ -9,7 +9,7 @@ interface EventReviewTabProps {
   selectedEvents: Set<string>;
   editingEvents: { [key: string]: DetectedEvent };
   isSaving: boolean;
-  onEventToggle: (eventId: string) => void;
+  onEventToggle: (callback: (prev: Set<string>) => Set<string>) => void;
   onEventEdit: (eventId: string, field: string, value: string) => void;
   onConfirmEvents: () => void;
   onClose: () => void;
@@ -27,6 +27,18 @@ const EventReviewTab: React.FC<EventReviewTabProps> = ({
   onClose,
   getEventData
 }) => {
+  const handleEventToggle = (eventId: string) => {
+    onEventToggle((prev: Set<string>) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(eventId)) {
+        newSelected.delete(eventId);
+      } else {
+        newSelected.add(eventId);
+      }
+      return newSelected;
+    });
+  };
+
   return (
     <div className="space-y-4">
       {detectedEvents.map((event) => {
@@ -39,7 +51,7 @@ const EventReviewTab: React.FC<EventReviewTabProps> = ({
             event={event}
             isSelected={isSelected}
             eventData={eventData}
-            onToggle={onEventToggle}
+            onToggle={handleEventToggle}
             onEdit={onEventEdit}
           />
         );
