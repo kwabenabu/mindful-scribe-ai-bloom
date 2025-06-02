@@ -100,14 +100,14 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
   const events: DetectedEvent[] = [];
   const content = text.toLowerCase();
   
-  // Time patterns
+  // Improved time patterns
   const timePatterns = [
     /(?:at|@)\s*(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)/gi,
     /(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm)))/gi,
     /(?:around|about)\s*(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)/gi
   ];
 
-  // Date patterns
+  // Enhanced date patterns
   const datePatterns = [
     /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/gi,
     /(tomorrow|today|tonight|yesterday)/gi,
@@ -124,31 +124,34 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
     { words: ['presentation', 'demo', 'pitch'], confidence: 0.8 },
     { words: ['workout', 'gym', 'exercise'], confidence: 0.7 },
     { words: ['doctor', 'dentist', 'checkup'], confidence: 0.85 },
-    { words: ['class', 'training', 'workshop'], confidence: 0.8 }
+    { words: ['class', 'training', 'workshop'], confidence: 0.8 },
+    { words: ['sync', 'standup', 'review'], confidence: 0.85 },
+    { words: ['planning', 'sprint'], confidence: 0.8 }
   ];
 
-  // Location patterns - fixed to return proper strings
+  // Enhanced location patterns
   const locationPatterns = [
     /(?:at|in|@)\s+([A-Z][a-zA-Z\s]+(?:Restaurant|Cafe|Office|Building|Center|Park|Hospital|Clinic))/gi,
     /(?:at|in|@)\s+the\s+([a-zA-Z\s]{2,30})/gi,
     /(?:at|in|@)\s+([A-Z][a-zA-Z\s]{2,20})/gi
   ];
 
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  // Split text into more manageable segments for better event detection
+  const segments = text.split(/[.!?;]+/).filter(s => s.trim().length > 0);
 
-  sentences.forEach((sentence, sentenceIndex) => {
-    const lowerSentence = sentence.toLowerCase().trim();
+  segments.forEach((segment, segmentIndex) => {
+    const lowerSegment = segment.toLowerCase().trim();
     
     // Check for event keywords
     for (const keywordGroup of eventKeywords) {
       for (const keyword of keywordGroup.words) {
-        if (lowerSentence.includes(keyword)) {
+        if (lowerSegment.includes(keyword)) {
           // Extract time information
           let timeMatch = null;
           let timeStr = '';
           for (const pattern of timePatterns) {
-            pattern.lastIndex = 0; // Reset regex
-            const match = pattern.exec(sentence);
+            pattern.lastIndex = 0;
+            const match = pattern.exec(segment);
             if (match) {
               timeMatch = match;
               timeStr = parseTimeToStandardFormat(match[1]);
@@ -160,8 +163,8 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
           let dateMatch = null;
           let dateStr = '';
           for (const pattern of datePatterns) {
-            pattern.lastIndex = 0; // Reset regex
-            const match = pattern.exec(sentence);
+            pattern.lastIndex = 0;
+            const match = pattern.exec(segment);
             if (match) {
               dateMatch = match;
               dateStr = match[1];
@@ -173,8 +176,8 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
           let locationMatch = null;
           let locationStr = '';
           for (const pattern of locationPatterns) {
-            pattern.lastIndex = 0; // Reset regex
-            const match = pattern.exec(sentence);
+            pattern.lastIndex = 0;
+            const match = pattern.exec(segment);
             if (match) {
               locationMatch = match;
               locationStr = match[1] ? match[1].trim() : '';
@@ -182,8 +185,8 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
             }
           }
 
-          // Generate event title
-          const eventTitle = generateEventTitle(sentence, keyword);
+          // Generate improved event title
+          const eventTitle = generateImprovedEventTitle(segment, keyword, timeMatch, dateMatch);
           
           // Calculate confidence based on available information
           let confidence = keywordGroup.confidence;
@@ -200,16 +203,16 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
             const properDate = dateStr ? parseToProperDate(dateStr) : undefined;
             
             const event: DetectedEvent = {
-              id: `event_${sentenceIndex}_${events.length}`,
+              id: `event_${segmentIndex}_${events.length}`,
               title: eventTitle,
-              description: sentence.trim(),
+              description: segment.trim(),
               date: properDate,
               time: timeStr || undefined,
               location: locationStr || undefined,
               duration: getDefaultDuration(keyword),
               confidence: confidence,
-              startIndex: text.indexOf(sentence),
-              endIndex: text.indexOf(sentence) + sentence.length
+              startIndex: text.indexOf(segment),
+              endIndex: text.indexOf(segment) + segment.length
             };
 
             // Try to parse datetime if we have both date and time
@@ -233,19 +236,32 @@ export const detectEventsFromText = (text: string): EventDetectionResult => {
   };
 };
 
-const generateEventTitle = (sentence: string, keyword: string): string => {
-  // Try to extract a meaningful title from the sentence
-  const words = sentence.split(' ');
+const generateImprovedEventTitle = (segment: string, keyword: string, timeMatch: any, dateMatch: any): string => {
+  // Try to extract context around the keyword for a better title
+  const words = segment.split(' ');
   const keywordIndex = words.findIndex(w => w.toLowerCase().includes(keyword.toLowerCase()));
   
   if (keywordIndex !== -1) {
-    // Take a few words around the keyword
-    const start = Math.max(0, keywordIndex - 2);
-    const end = Math.min(words.length, keywordIndex + 3);
-    const titleWords = words.slice(start, end);
+    // Look for meaningful context before and after the keyword
+    const contextBefore = words.slice(Math.max(0, keywordIndex - 3), keywordIndex);
+    const contextAfter = words.slice(keywordIndex + 1, Math.min(words.length, keywordIndex + 4));
     
-    // Capitalize first letter
-    const title = titleWords.join(' ');
+    // Filter out time and date words from the context
+    const timeWords = ['at', 'on', 'am', 'pm', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const cleanContextBefore = contextBefore.filter(w => !timeWords.some(tw => w.toLowerCase().includes(tw)));
+    const cleanContextAfter = contextAfter.filter(w => !timeWords.some(tw => w.toLowerCase().includes(tw)));
+    
+    // Build a meaningful title
+    const titleParts = [];
+    if (cleanContextBefore.length > 0) {
+      titleParts.push(...cleanContextBefore);
+    }
+    titleParts.push(keyword);
+    if (cleanContextAfter.length > 0) {
+      titleParts.push(...cleanContextAfter.slice(0, 2)); // Limit to 2 words after
+    }
+    
+    const title = titleParts.join(' ');
     return title.charAt(0).toUpperCase() + title.slice(1);
   }
   
@@ -267,7 +283,11 @@ const getDefaultDuration = (eventType: string): number => {
     'party': 180,
     'presentation': 45,
     'workout': 60,
-    'class': 90
+    'class': 90,
+    'sync': 30,
+    'standup': 15,
+    'review': 60,
+    'planning': 90
   };
   
   return durations[eventType.toLowerCase()] || 30;
