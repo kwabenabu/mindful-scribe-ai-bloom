@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Grid3X3, List } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns';
+import MusicDisplay from '@/components/MusicDisplay';
 import type { Json } from '@/integrations/supabase/types';
+import type { MusicTrack } from '@/utils/musicSearch';
 
 interface JournalEntry {
   id: number;
@@ -19,6 +20,14 @@ interface JournalEntry {
   sentiment_score?: number;
   sentiment_keywords?: string[];
   extracted_goals?: Json;
+  music_title?: string;
+  music_artist?: string;
+  music_album?: string;
+  music_spotify_url?: string;
+  music_apple_music_url?: string;
+  music_preview_url?: string;
+  music_cover_art_url?: string;
+  music_external_id?: string;
 }
 
 const Calendar = () => {
@@ -45,7 +54,12 @@ const Calendar = () => {
 
       const { data, error } = await supabase
         .from('journals')
-        .select('id, content, created_at, sentiment_score, sentiment_keywords, extracted_goals')
+        .select(`
+          id, content, created_at, sentiment_score, sentiment_keywords, extracted_goals,
+          music_title, music_artist, music_album,
+          music_spotify_url, music_apple_music_url,
+          music_preview_url, music_cover_art_url, music_external_id
+        `)
         .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
@@ -68,6 +82,21 @@ const Calendar = () => {
   useEffect(() => {
     fetchEntries();
   }, [user, currentDate, viewMode]);
+
+  const createMusicTrackFromEntry = (entry: JournalEntry): MusicTrack | null => {
+    if (!entry.music_title || !entry.music_artist) return null;
+    
+    return {
+      id: entry.music_external_id || entry.id.toString(),
+      title: entry.music_title,
+      artist: entry.music_artist,
+      album: entry.music_album || '',
+      spotifyUrl: entry.music_spotify_url || undefined,
+      appleMusicUrl: entry.music_apple_music_url || undefined,
+      previewUrl: entry.music_preview_url || undefined,
+      coverArtUrl: entry.music_cover_art_url || undefined,
+    };
+  };
 
   const navigatePrevious = () => {
     if (viewMode === 'week') {
@@ -359,42 +388,54 @@ const Calendar = () => {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {selectedDateEntries.map((entry) => (
-                  <Card key={entry.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">
-                          {format(new Date(entry.created_at), 'h:mm a')}
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          {getSentimentBadgeForEntry(entry.sentiment_score)}
-                          {entry.sentiment_score !== undefined && entry.sentiment_score !== null && (
-                            <Badge variant="outline">
-                              Score: {(entry.sentiment_score * 100).toFixed(0)}%
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-gray-700 whitespace-pre-wrap mb-3">
-                        {entry.content}
-                      </p>
-                      {entry.sentiment_keywords && entry.sentiment_keywords.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-sm font-medium text-gray-600 mb-2">Keywords:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {entry.sentiment_keywords.map((keyword, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {keyword}
+                {selectedDateEntries.map((entry) => {
+                  const musicTrack = createMusicTrackFromEntry(entry);
+                  
+                  return (
+                    <Card key={entry.id}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">
+                            {format(new Date(entry.created_at), 'h:mm a')}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            {getSentimentBadgeForEntry(entry.sentiment_score)}
+                            {entry.sentiment_score !== undefined && entry.sentiment_score !== null && (
+                              <Badge variant="outline">
+                                Score: {(entry.sentiment_score * 100).toFixed(0)}%
                               </Badge>
-                            ))}
+                            )}
                           </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-700 whitespace-pre-wrap mb-3">
+                          {entry.content}
+                        </p>
+                        
+                        {musicTrack && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-600 mb-2">Associated Music:</p>
+                            <MusicDisplay track={musicTrack} compact={true} />
+                          </div>
+                        )}
+                        
+                        {entry.sentiment_keywords && entry.sentiment_keywords.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-sm font-medium text-gray-600 mb-2">Keywords:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {entry.sentiment_keywords.map((keyword, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {keyword}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </DialogContent>
           </Dialog>

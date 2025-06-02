@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,13 +8,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Trash2, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import MusicDisplay from './MusicDisplay';
 import type { Json } from '@/integrations/supabase/types';
+import type { MusicTrack } from '@/utils/musicSearch';
 
 interface JournalEntry {
   id: number;
   content: string;
   created_at: string;
   extracted_goals?: Json;
+  music_title?: string;
+  music_artist?: string;
+  music_album?: string;
+  music_spotify_url?: string;
+  music_apple_music_url?: string;
+  music_preview_url?: string;
+  music_cover_art_url?: string;
+  music_external_id?: string;
 }
 
 interface ExtractedGoals {
@@ -37,7 +48,12 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     try {
       const { data, error } = await supabase
         .from('journals')
-        .select('id, content, created_at, extracted_goals')
+        .select(`
+          id, content, created_at, extracted_goals,
+          music_title, music_artist, music_album,
+          music_spotify_url, music_apple_music_url,
+          music_preview_url, music_cover_art_url, music_external_id
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -92,6 +108,21 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
     }
   };
 
+  const createMusicTrackFromEntry = (entry: JournalEntry): MusicTrack | null => {
+    if (!entry.music_title || !entry.music_artist) return null;
+    
+    return {
+      id: entry.music_external_id || entry.id.toString(),
+      title: entry.music_title,
+      artist: entry.music_artist,
+      album: entry.music_album || '',
+      spotifyUrl: entry.music_spotify_url || undefined,
+      appleMusicUrl: entry.music_apple_music_url || undefined,
+      previewUrl: entry.music_preview_url || undefined,
+      coverArtUrl: entry.music_cover_art_url || undefined,
+    };
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -122,6 +153,7 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
         const entryTitle = extractedGoals?.title || 
           format(new Date(entry.created_at), 'EEEE, MMM d');
         const entryTags = extractedGoals?.tags || [];
+        const musicTrack = createMusicTrackFromEntry(entry);
         
         return (
           <Card key={entry.id} className="w-full">
@@ -159,6 +191,13 @@ const JournalEntryList: React.FC<JournalEntryListProps> = ({ refreshTrigger }) =
               <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
                 {entry.content}
               </p>
+              
+              {musicTrack && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-600 mb-2">Associated Music:</p>
+                  <MusicDisplay track={musicTrack} compact={true} />
+                </div>
+              )}
             </CardContent>
           </Card>
         );

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +11,10 @@ import { detectGoalsAndTasks, type DetectedGoal, type GoalDetectionResult } from
 import { detectEventsFromText, type DetectedEvent, type EventDetectionResult } from '@/utils/eventDetection';
 import GoalConfirmationDialog from './GoalConfirmationDialog';
 import EventDetectionDialog from './calendar/EventDetectionDialog';
-import { Target, CheckSquare, Calendar, Clock } from 'lucide-react';
+import MusicSearchDialog from './MusicSearchDialog';
+import MusicDisplay from './MusicDisplay';
+import { Target, CheckSquare, Calendar, Clock, Music } from 'lucide-react';
+import type { MusicTrack } from '@/utils/musicSearch';
 
 interface JournalEntryFormProps {
   onEntryCreated?: () => void;
@@ -28,6 +30,8 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
   const [detectedEvents, setDetectedEvents] = useState<EventDetectionResult>({ events: [], hasHighConfidenceEvents: false });
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [showEventDialog, setShowEventDialog] = useState(false);
+  const [showMusicDialog, setShowMusicDialog] = useState(false);
+  const [selectedMusic, setSelectedMusic] = useState<MusicTrack | null>(null);
   const [confirmedGoals, setConfirmedGoals] = useState<DetectedGoal[]>([]);
   const [confirmedTasks, setConfirmedTasks] = useState<DetectedGoal[]>([]);
   const [confirmedEvents, setConfirmedEvents] = useState<DetectedEvent[]>([]);
@@ -93,6 +97,22 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
     toast({
       title: "Events Processed",
       description: "Detected events have been saved for calendar integration",
+    });
+  };
+
+  const handleMusicSelect = (track: MusicTrack) => {
+    setSelectedMusic(track);
+    toast({
+      title: "Music Added",
+      description: `Added "${track.title}" by ${track.artist} to your entry`,
+    });
+  };
+
+  const handleRemoveMusic = () => {
+    setSelectedMusic(null);
+    toast({
+      title: "Music Removed",
+      description: "Music has been removed from your entry",
     });
   };
 
@@ -193,13 +213,28 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         }))
       };
 
-      const { data: journalData, error } = await supabase
+      // Prepare the journal entry data
+      const journalData: any = {
+        content: content.trim(),
+        user_id: user.id,
+        extracted_goals: extractedGoalsData
+      };
+
+      // Add music metadata if selected
+      if (selectedMusic) {
+        journalData.music_title = selectedMusic.title;
+        journalData.music_artist = selectedMusic.artist;
+        journalData.music_album = selectedMusic.album;
+        journalData.music_spotify_url = selectedMusic.spotifyUrl;
+        journalData.music_apple_music_url = selectedMusic.appleMusicUrl;
+        journalData.music_preview_url = selectedMusic.previewUrl;
+        journalData.music_cover_art_url = selectedMusic.coverArtUrl;
+        journalData.music_external_id = selectedMusic.id;
+      }
+
+      const { data: journalEntryData, error } = await supabase
         .from('journals')
-        .insert({
-          content: content.trim(),
-          user_id: user.id,
-          extracted_goals: extractedGoalsData
-        })
+        .insert(journalData)
         .select()
         .single();
 
@@ -209,16 +244,18 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
       }
 
       // Save the journal ID for event processing
-      setSavedJournalId(journalData.id);
+      setSavedJournalId(journalEntryData.id);
 
       // Save goals and tasks to their respective tables
-      if (journalData && (confirmedGoals.length > 0 || confirmedTasks.length > 0)) {
-        await saveGoalsAndTasks(journalData.id);
+      if (journalEntryData && (confirmedGoals.length > 0 || confirmedTasks.length > 0)) {
+        await saveGoalsAndTasks(journalEntryData.id);
       }
 
       toast({
         title: "Success",
-        description: "Journal entry created successfully!"
+        description: selectedMusic 
+          ? `Journal entry created with "${selectedMusic.title}" by ${selectedMusic.artist}!`
+          : "Journal entry created successfully!"
       });
 
       // Reset form state
@@ -228,6 +265,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
       setDetectedGoals({ goals: [], tasks: [] });
       setConfirmedGoals([]);
       setConfirmedTasks([]);
+      setSelectedMusic(null);
       
       // Show event detection dialog immediately after successful save if events are detected
       if (detectedEvents.events.length > 0) {
@@ -281,6 +319,32 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
                 className="min-h-[200px] resize-none"
                 disabled={isSubmitting}
               />
+            </div>
+
+            {/* Music Section */}
+            <div className="space-y-3">
+              {selectedMusic ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium text-gray-700">Associated Music</h4>
+                  </div>
+                  <MusicDisplay 
+                    track={selectedMusic} 
+                    onRemove={handleRemoveMusic}
+                    compact={true}
+                  />
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowMusicDialog(true)}
+                  className="w-full flex items-center gap-2"
+                >
+                  <Music className="h-4 w-4" />
+                  Add Music to Entry
+                </Button>
+              )}
             </div>
 
             {generatedTags.length > 0 && (
@@ -371,6 +435,7 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
                   setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
                   setConfirmedGoals([]);
                   setConfirmedTasks([]);
+                  setSelectedMusic(null);
                 }}
                 disabled={isSubmitting}
               >
@@ -397,6 +462,12 @@ const JournalEntryForm: React.FC<JournalEntryFormProps> = ({ onEntryCreated }) =
         detectedEvents={detectedEvents.events}
         journalEntryId={savedJournalId || undefined}
         onEventsConfirmed={handleEventConfirmation}
+      />
+
+      <MusicSearchDialog
+        isOpen={showMusicDialog}
+        onClose={() => setShowMusicDialog(false)}
+        onSelectTrack={handleMusicSelect}
       />
     </>
   );

@@ -273,6 +273,14 @@ export type Database = {
           extracted_events: Json | null
           extracted_goals: Json | null
           id: number
+          music_album: string | null
+          music_apple_music_url: string | null
+          music_artist: string | null
+          music_cover_art_url: string | null
+          music_external_id: string | null
+          music_preview_url: string | null
+          music_spotify_url: string | null
+          music_title: string | null
           sentiment_analysis_date: string | null
           sentiment_keywords: string[] | null
           sentiment_score: number | null
@@ -286,6 +294,14 @@ export type Database = {
           extracted_events?: Json | null
           extracted_goals?: Json | null
           id?: number
+          music_album?: string | null
+          music_apple_music_url?: string | null
+          music_artist?: string | null
+          music_cover_art_url?: string | null
+          music_external_id?: string | null
+          music_preview_url?: string | null
+          music_spotify_url?: string | null
+          music_title?: string | null
           sentiment_analysis_date?: string | null
           sentiment_keywords?: string[] | null
           sentiment_score?: number | null
@@ -299,6 +315,14 @@ export type Database = {
           extracted_events?: Json | null
           extracted_goals?: Json | null
           id?: number
+          music_album?: string | null
+          music_apple_music_url?: string | null
+          music_artist?: string | null
+          music_cover_art_url?: string | null
+          music_external_id?: string | null
+          music_preview_url?: string | null
+          music_spotify_url?: string | null
+          music_title?: string | null
           sentiment_analysis_date?: string | null
           sentiment_keywords?: string[] | null
           sentiment_score?: number | null
