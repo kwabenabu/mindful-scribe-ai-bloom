@@ -3,6 +3,7 @@ import React from 'react';
 import Header from '@/components/Header';
 import CalendarSettings from '@/components/calendar/CalendarSettings';
 import UserProfileForm from '@/components/UserProfileForm';
+import ThemeSelector from '@/components/ThemeSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings as SettingsIcon, Brain } from 'lucide-react';
 
@@ -24,10 +25,11 @@ const Settings = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-8">
               <UserProfileForm />
-              <CalendarSettings />
+              <ThemeSelector />
             </div>
             
             <div className="space-y-8">
+              <CalendarSettings />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

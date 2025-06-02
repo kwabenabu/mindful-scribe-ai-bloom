@@ -2,6 +2,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
+import OnboardingMessage from '@/components/OnboardingMessage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUserStats } from '@/hooks/useUserStats';
@@ -65,6 +66,9 @@ const Index = () => {
       <Header />
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0 space-y-8">
+          {/* Onboarding Message for first-time users */}
+          <OnboardingMessage />
+
           {/* Welcome Section */}
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
