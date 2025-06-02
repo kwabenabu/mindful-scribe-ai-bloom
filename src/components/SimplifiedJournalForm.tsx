@@ -1,14 +1,14 @@
+
 import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Target, Send, Calendar } from 'lucide-react';
-import WeeklyGoalsDialog from './WeeklyGoalsDialog';
-import EventDetectionDialog from './calendar/EventDetectionDialog';
-import { detectEventsFromText, type DetectedEvent, type EventDetectionResult } from '@/utils/eventDetection';
+import { analyzeSentiment, getSentimentLabel } from '@/utils/sentimentAnalysis';
+import { Loader2, Send } from 'lucide-react';
 
 interface SimplifiedJournalFormProps {
   onEntryCreated?: () => void;
@@ -17,67 +17,84 @@ interface SimplifiedJournalFormProps {
 const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCreated }) => {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showGoals, setShowGoals] = useState(false);
-  const [showEventDialog, setShowEventDialog] = useState(false);
-  const [detectedEvents, setDetectedEvents] = useState<EventDetectionResult>({ events: [], hasHighConfidenceEvents: false });
-  const [savedJournalId, setSavedJournalId] = useState<number | null>(null);
+  const [previewSentiment, setPreviewSentiment] = useState<{ score: number; keywords: string[] } | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = async () => {
-    if (!user || !content.trim()) {
-      console.log('Missing user or content:', { user: !!user, content: content.trim() });
+  const handleContentChange = (value: string) => {
+    setContent(value);
+    
+    // Show live sentiment preview for longer texts
+    if (value.length > 50) {
+      const sentiment = analyzeSentiment(value);
+      setPreviewSentiment(sentiment);
+    } else {
+      setPreviewSentiment(null);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to create journal entries",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!content.trim()) {
+      toast({
+        title: "Content required",
+        description: "Please enter some content for your journal entry",
+        variant: "destructive"
+      });
       return;
     }
 
     setIsSubmitting(true);
-    try {
-      console.log('Starting journal entry submission...');
-      
-      // Detect events from the content before saving
-      const eventDetection = detectEventsFromText(content.trim());
-      console.log('Event detection result:', eventDetection);
 
-      const { data: journalData, error } = await supabase
+    try {
+      // Analyze sentiment
+      const sentimentResult = analyzeSentiment(content);
+      
+      const { data, error } = await supabase
         .from('journals')
         .insert({
-          user_id: user.id,
           content: content.trim(),
+          user_id: user.id,
+          sentiment_score: sentimentResult.score,
+          sentiment_keywords: sentimentResult.keywords,
+          sentiment_analysis_date: new Date().toISOString()
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Journal insert error:', error);
+        console.error('Error creating journal entry:', error);
         throw error;
       }
 
-      console.log('Journal saved successfully:', journalData);
+      console.log('Journal entry created successfully:', data);
       
-      setContent('');
       toast({
-        title: "Entry Saved",
-        description: "Your journal entry has been saved successfully"
+        title: "Journal entry created",
+        description: `Your entry has been saved with ${getSentimentLabel(sentimentResult.score).toLowerCase()} sentiment`,
       });
 
-      // Store the journal ID and detected events for the dialog
-      setSavedJournalId(journalData.id);
-      setDetectedEvents(eventDetection);
-
-      // Show event detection dialog if events are detected
-      if (eventDetection.events.length > 0) {
-        console.log('Opening event detection dialog with events:', eventDetection.events);
-        setShowEventDialog(true);
-      }
-
+      setContent('');
+      setPreviewSentiment(null);
+      
       if (onEntryCreated) {
         onEntryCreated();
       }
     } catch (error) {
-      console.error('Error saving journal entry:', error);
+      console.error('Error creating journal entry:', error);
       toast({
         title: "Error",
-        description: `Failed to save journal entry: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: "Failed to create journal entry. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -85,83 +102,72 @@ const SimplifiedJournalForm: React.FC<SimplifiedJournalFormProps> = ({ onEntryCr
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const handleEventConfirmation = () => {
-    setShowEventDialog(false);
-    setDetectedEvents({ events: [], hasHighConfidenceEvents: false });
-    setSavedJournalId(null);
-    toast({
-      title: "Events Processed",
-      description: "Detected events have been saved for calendar integration",
-    });
-  };
-
   return (
-    <>
-      <Card className="max-w-2xl mx-auto">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="What's on your mind today? Share your thoughts, experiences, or reflections..."
-              className="min-h-[200px] border-0 shadow-none resize-none text-lg leading-relaxed placeholder:text-gray-400 focus-visible:ring-0 font-serif"
-              style={{
-                fontSize: '18px',
-                lineHeight: '1.8',
-                fontFamily: 'Georgia, "Times New Roman", Times, serif'
-              }}
-            />
+    <div className="w-full max-w-2xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            New Journal Entry
+            {previewSentiment && (
+              <Badge 
+                className={`
+                  ${previewSentiment.score >= 0.6 ? 'bg-green-500' : 
+                    previewSentiment.score >= 0.4 ? 'bg-yellow-500' : 'bg-red-500'}
+                `}
+              >
+                {getSentimentLabel(previewSentiment.score)} ({Math.round(previewSentiment.score * 100)}%)
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Textarea
+                placeholder="What's on your mind today? Share your thoughts, experiences, or reflections..."
+                value={content}
+                onChange={(e) => handleContentChange(e.target.value)}
+                className="min-h-[200px] resize-none"
+                disabled={isSubmitting}
+              />
+            </div>
             
-            <div className="flex items-center justify-between pt-4 border-t">
+            {previewSentiment && previewSentiment.keywords.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-600">Detected keywords:</p>
+                <div className="flex flex-wrap gap-1">
+                  {previewSentiment.keywords.map((keyword, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowGoals(true)}
+                type="submit"
+                disabled={isSubmitting || !content.trim()}
                 className="flex items-center gap-2"
               >
-                <Target className="h-4 w-4" />
-                Weekly Goals
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Save Entry
+                  </>
+                )}
               </Button>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">
-                  Cmd/Ctrl + Enter to save
-                </span>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!content.trim() || isSubmitting}
-                  className="flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  {isSubmitting ? 'Saving...' : 'Save Entry'}
-                </Button>
-              </div>
             </div>
-          </div>
+          </form>
         </CardContent>
       </Card>
-
-      <WeeklyGoalsDialog
-        isOpen={showGoals}
-        onClose={() => setShowGoals(false)}
-      />
-
-      <EventDetectionDialog
-        isOpen={showEventDialog}
-        onClose={() => setShowEventDialog(false)}
-        detectedEvents={detectedEvents.events}
-        journalEntryId={savedJournalId || undefined}
-        onEventsConfirmed={handleEventConfirmation}
-      />
-    </>
+    </div>
   );
 };
 

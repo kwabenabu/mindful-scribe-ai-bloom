@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ interface JournalEntry {
   content: string;
   created_at: string;
   sentiment_score?: number;
+  sentiment_keywords?: string[];
   extracted_goals?: Json;
 }
 
@@ -24,6 +26,9 @@ const Calendar = () => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDateEntries, setSelectedDateEntries] = useState<JournalEntry[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -40,7 +45,7 @@ const Calendar = () => {
 
       const { data, error } = await supabase
         .from('journals')
-        .select('id, content, created_at, sentiment_score, extracted_goals')
+        .select('id, content, created_at, sentiment_score, sentiment_keywords, extracted_goals')
         .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
@@ -99,8 +104,8 @@ const Calendar = () => {
     }
   };
 
-  const getEntryForDay = (day: Date) => {
-    return entries.find(entry => 
+  const getEntriesForDay = (day: Date) => {
+    return entries.filter(entry => 
       isSameDay(new Date(entry.created_at), day)
     );
   };
@@ -119,6 +124,23 @@ const Calendar = () => {
     if (sentimentScore >= 0.6) return <Badge className="bg-green-500">Great Day</Badge>;
     if (sentimentScore >= 0.3) return <Badge className="bg-yellow-500">Good Day</Badge>;
     return <Badge className="bg-red-500">Tough Day</Badge>;
+  };
+
+  const getSentimentBadgeForEntry = (sentimentScore?: number) => {
+    if (!sentimentScore) return <Badge variant="secondary">No Analysis</Badge>;
+    
+    if (sentimentScore >= 0.6) return <Badge className="bg-green-500">Positive</Badge>;
+    if (sentimentScore >= 0.3) return <Badge className="bg-yellow-500">Neutral</Badge>;
+    return <Badge className="bg-red-500">Negative</Badge>;
+  };
+
+  const handleDayClick = (day: Date) => {
+    const dayEntries = getEntriesForDay(day);
+    if (dayEntries.length > 0) {
+      setSelectedDate(day);
+      setSelectedDateEntries(dayEntries);
+      setIsDialogOpen(true);
+    }
   };
 
   const days = getDaysToRender();
@@ -190,32 +212,40 @@ const Calendar = () => {
                   
                   {/* Calendar days */}
                   {days.map((day, index) => {
-                    const entry = getEntryForDay(day);
+                    const dayEntries = getEntriesForDay(day);
+                    const averageSentiment = dayEntries.length > 0 
+                      ? dayEntries.reduce((sum, entry) => sum + (entry.sentiment_score || 0), 0) / dayEntries.length
+                      : undefined;
                     const isCurrentMonth = isSameMonth(day, currentDate);
                     const isToday = isSameDay(day, new Date());
+                    const hasEntries = dayEntries.length > 0;
                     
                     return (
                       <div
                         key={index}
                         className={`
-                          min-h-[120px] p-2 border rounded-lg transition-colors cursor-pointer
-                          ${getSentimentColor(entry?.sentiment_score)}
+                          min-h-[120px] p-2 border rounded-lg transition-colors
+                          ${getSentimentColor(averageSentiment)}
                           ${!isCurrentMonth ? 'opacity-40' : ''}
                           ${isToday ? 'ring-2 ring-blue-500' : ''}
-                          hover:shadow-md
+                          ${hasEntries ? 'cursor-pointer hover:shadow-md' : ''}
                         `}
+                        onClick={() => handleDayClick(day)}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className={`text-sm ${isToday ? 'font-bold text-blue-600' : 'text-gray-700'}`}>
                             {format(day, 'd')}
                           </span>
-                          {getSentimentBadge(entry?.sentiment_score)}
+                          {getSentimentBadge(averageSentiment)}
                         </div>
                         
-                        {entry && (
+                        {dayEntries.length > 0 && (
                           <div className="space-y-1">
+                            <p className="text-xs text-gray-600">
+                              {dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}
+                            </p>
                             <p className="text-xs text-gray-600 line-clamp-3">
-                              {entry.content.substring(0, 100)}...
+                              {dayEntries[0].content.substring(0, 100)}...
                             </p>
                           </div>
                         )}
@@ -226,30 +256,40 @@ const Calendar = () => {
               ) : (
                 <div className="space-y-2">
                   {days.map((day, index) => {
-                    const entry = getEntryForDay(day);
+                    const dayEntries = getEntriesForDay(day);
+                    const averageSentiment = dayEntries.length > 0 
+                      ? dayEntries.reduce((sum, entry) => sum + (entry.sentiment_score || 0), 0) / dayEntries.length
+                      : undefined;
                     const isToday = isSameDay(day, new Date());
+                    const hasEntries = dayEntries.length > 0;
                     
                     return (
                       <div
                         key={index}
                         className={`
-                          p-4 border rounded-lg transition-colors cursor-pointer
-                          ${getSentimentColor(entry?.sentiment_score)}
+                          p-4 border rounded-lg transition-colors
+                          ${getSentimentColor(averageSentiment)}
                           ${isToday ? 'ring-2 ring-blue-500' : ''}
-                          hover:shadow-md
+                          ${hasEntries ? 'cursor-pointer hover:shadow-md' : ''}
                         `}
+                        onClick={() => handleDayClick(day)}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <h3 className={`font-medium ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
                             {format(day, 'EEEE, MMMM d')}
                           </h3>
-                          {getSentimentBadge(entry?.sentiment_score)}
+                          {getSentimentBadge(averageSentiment)}
                         </div>
                         
-                        {entry ? (
-                          <p className="text-gray-700 line-clamp-2">
-                            {entry.content}
-                          </p>
+                        {dayEntries.length > 0 ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}
+                            </p>
+                            <p className="text-gray-700 line-clamp-2">
+                              {dayEntries[0].content}
+                            </p>
+                          </div>
                         ) : (
                           <p className="text-gray-400 italic">No entry for this day</p>
                         )}
@@ -260,6 +300,55 @@ const Calendar = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog for viewing entries */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  Journal Entries for {selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedDateEntries.map((entry) => (
+                  <Card key={entry.id}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">
+                          {format(new Date(entry.created_at), 'h:mm a')}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          {getSentimentBadgeForEntry(entry.sentiment_score)}
+                          {entry.sentiment_score && (
+                            <Badge variant="outline">
+                              Score: {(entry.sentiment_score * 100).toFixed(0)}%
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-700 whitespace-pre-wrap mb-3">
+                        {entry.content}
+                      </p>
+                      {entry.sentiment_keywords && entry.sentiment_keywords.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-sm font-medium text-gray-600 mb-2">Keywords:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {entry.sentiment_keywords.map((keyword, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </main>
     </div>

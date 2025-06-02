@@ -273,6 +273,8 @@ export type Database = {
           extracted_events: Json | null
           extracted_goals: Json | null
           id: number
+          sentiment_analysis_date: string | null
+          sentiment_keywords: string[] | null
           sentiment_score: number | null
           user_id: string | null
           weekly_goals: Json | null
@@ -284,6 +286,8 @@ export type Database = {
           extracted_events?: Json | null
           extracted_goals?: Json | null
           id?: number
+          sentiment_analysis_date?: string | null
+          sentiment_keywords?: string[] | null
           sentiment_score?: number | null
           user_id?: string | null
           weekly_goals?: Json | null
@@ -295,6 +299,8 @@ export type Database = {
           extracted_events?: Json | null
           extracted_goals?: Json | null
           id?: number
+          sentiment_analysis_date?: string | null
+          sentiment_keywords?: string[] | null
           sentiment_score?: number | null
           user_id?: string | null
           weekly_goals?: Json | null
