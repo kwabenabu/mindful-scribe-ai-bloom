@@ -111,27 +111,52 @@ const Calendar = () => {
   };
 
   const getSentimentColor = (sentimentScore?: number) => {
-    if (!sentimentScore) return 'bg-gray-100 border-gray-200';
+    if (sentimentScore === undefined || sentimentScore === null) {
+      return 'bg-gray-50 border-gray-200 hover:bg-gray-100';
+    }
     
-    if (sentimentScore >= 0.6) return 'bg-green-100 border-green-300';
-    if (sentimentScore >= 0.3) return 'bg-yellow-100 border-yellow-300';
-    return 'bg-red-100 border-red-300';
+    if (sentimentScore >= 0.6) {
+      return 'bg-green-50 border-green-300 hover:bg-green-100';
+    }
+    if (sentimentScore >= 0.4) {
+      return 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100';
+    }
+    return 'bg-red-50 border-red-300 hover:bg-red-100';
   };
 
   const getSentimentBadge = (sentimentScore?: number) => {
-    if (!sentimentScore) return null;
+    if (sentimentScore === undefined || sentimentScore === null) {
+      return null;
+    }
     
-    if (sentimentScore >= 0.6) return <Badge className="bg-green-500">Great Day</Badge>;
-    if (sentimentScore >= 0.3) return <Badge className="bg-yellow-500">Good Day</Badge>;
-    return <Badge className="bg-red-500">Tough Day</Badge>;
+    if (sentimentScore >= 0.6) {
+      return <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs">Great Day</Badge>;
+    }
+    if (sentimentScore >= 0.4) {
+      return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs">Good Day</Badge>;
+    }
+    return <Badge className="bg-red-500 hover:bg-red-600 text-white text-xs">Tough Day</Badge>;
   };
 
   const getSentimentBadgeForEntry = (sentimentScore?: number) => {
-    if (!sentimentScore) return <Badge variant="secondary">No Analysis</Badge>;
+    if (sentimentScore === undefined || sentimentScore === null) {
+      return <Badge variant="secondary">No Analysis</Badge>;
+    }
     
-    if (sentimentScore >= 0.6) return <Badge className="bg-green-500">Positive</Badge>;
-    if (sentimentScore >= 0.3) return <Badge className="bg-yellow-500">Neutral</Badge>;
-    return <Badge className="bg-red-500">Negative</Badge>;
+    if (sentimentScore >= 0.6) {
+      return <Badge className="bg-green-500 hover:bg-green-600 text-white">Positive</Badge>;
+    }
+    if (sentimentScore >= 0.4) {
+      return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">Neutral</Badge>;
+    }
+    return <Badge className="bg-red-500 hover:bg-red-600 text-white">Negative</Badge>;
+  };
+
+  const getSentimentLabel = (score?: number) => {
+    if (score === undefined || score === null) return 'No Analysis';
+    if (score >= 0.6) return 'Positive';
+    if (score >= 0.4) return 'Neutral';
+    return 'Negative';
   };
 
   const handleDayClick = (day: Date) => {
@@ -199,6 +224,30 @@ const Calendar = () => {
             </div>
           </div>
 
+          {/* Legend */}
+          <Card className="bg-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center space-x-6 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+                  <span>Positive Days</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
+                  <span>Neutral Days</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
+                  <span>Challenging Days</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
+                  <span>No Entries</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-6">
               {viewMode === 'month' ? (
@@ -224,11 +273,11 @@ const Calendar = () => {
                       <div
                         key={index}
                         className={`
-                          min-h-[120px] p-2 border rounded-lg transition-colors
+                          min-h-[120px] p-2 border rounded-lg transition-all duration-200
                           ${getSentimentColor(averageSentiment)}
                           ${!isCurrentMonth ? 'opacity-40' : ''}
                           ${isToday ? 'ring-2 ring-blue-500' : ''}
-                          ${hasEntries ? 'cursor-pointer hover:shadow-md' : ''}
+                          ${hasEntries ? 'cursor-pointer hover:shadow-md transform hover:scale-105' : ''}
                         `}
                         onClick={() => handleDayClick(day)}
                       >
@@ -241,10 +290,10 @@ const Calendar = () => {
                         
                         {dayEntries.length > 0 && (
                           <div className="space-y-1">
-                            <p className="text-xs text-gray-600">
+                            <p className="text-xs text-gray-600 font-medium">
                               {dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}
                             </p>
-                            <p className="text-xs text-gray-600 line-clamp-3">
+                            <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed">
                               {dayEntries[0].content.substring(0, 100)}...
                             </p>
                           </div>
@@ -267,10 +316,10 @@ const Calendar = () => {
                       <div
                         key={index}
                         className={`
-                          p-4 border rounded-lg transition-colors
+                          p-4 border rounded-lg transition-all duration-200
                           ${getSentimentColor(averageSentiment)}
                           ${isToday ? 'ring-2 ring-blue-500' : ''}
-                          ${hasEntries ? 'cursor-pointer hover:shadow-md' : ''}
+                          ${hasEntries ? 'cursor-pointer hover:shadow-md transform hover:scale-[1.02]' : ''}
                         `}
                         onClick={() => handleDayClick(day)}
                       >
@@ -283,7 +332,7 @@ const Calendar = () => {
                         
                         {dayEntries.length > 0 ? (
                           <div>
-                            <p className="text-sm text-gray-600 mb-2">
+                            <p className="text-sm text-gray-600 mb-2 font-medium">
                               {dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}
                             </p>
                             <p className="text-gray-700 line-clamp-2">
@@ -319,7 +368,7 @@ const Calendar = () => {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           {getSentimentBadgeForEntry(entry.sentiment_score)}
-                          {entry.sentiment_score && (
+                          {entry.sentiment_score !== undefined && entry.sentiment_score !== null && (
                             <Badge variant="outline">
                               Score: {(entry.sentiment_score * 100).toFixed(0)}%
                             </Badge>
