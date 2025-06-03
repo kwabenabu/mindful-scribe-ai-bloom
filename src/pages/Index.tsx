@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import OnboardingMessage from '@/components/OnboardingMessage';
+import TaskCompletionDialog from '@/components/TaskCompletionDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUserStats } from '@/hooks/useUserStats';
@@ -24,7 +24,8 @@ import {
   Zap,
   CheckCircle,
   Clock,
-  BarChart3
+  BarChart3,
+  CheckSquare
 } from 'lucide-react';
 
 const Index = () => {
@@ -33,6 +34,7 @@ const Index = () => {
   const navigate = useNavigate();
   const userStats = useUserStats();
   const { achievements } = useAchievements(userStats);
+  const [showTaskDialog, setShowTaskDialog] = React.useState(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -203,7 +205,7 @@ const Index = () => {
           {/* Quick Actions */}
           <section>
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => navigate('/journal')}>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center space-x-2 text-lg group-hover:text-blue-600 transition-colors">
@@ -213,6 +215,18 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600">Start writing your thoughts and experiences</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setShowTaskDialog(true)}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center space-x-2 text-lg group-hover:text-purple-600 transition-colors">
+                    <CheckSquare className="h-5 w-5 text-purple-500" />
+                    <span>Complete Goals</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">Mark your goals and tasks as complete</p>
                 </CardContent>
               </Card>
 
@@ -378,6 +392,11 @@ const Index = () => {
           )}
         </div>
       </main>
+
+      <TaskCompletionDialog
+        isOpen={showTaskDialog}
+        onClose={() => setShowTaskDialog(false)}
+      />
     </div>
   );
 };
