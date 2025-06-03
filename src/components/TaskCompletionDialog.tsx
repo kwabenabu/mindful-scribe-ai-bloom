@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -123,7 +122,14 @@ const TaskCompletionDialog: React.FC<TaskCompletionDialogProps> = ({ isOpen, onC
 
     // Update database if it's a goal from the goals table
     if (taskId.startsWith('goal-')) {
-      const goalId = taskId.replace('goal-', '');
+      const goalIdString = taskId.replace('goal-', '');
+      const goalId = parseInt(goalIdString, 10);
+      
+      if (isNaN(goalId)) {
+        console.error('Invalid goal ID:', goalIdString);
+        return;
+      }
+      
       try {
         const { error } = await supabase
           .from('goals')
