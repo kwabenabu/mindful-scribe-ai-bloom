@@ -1,0 +1,298 @@
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { CheckSquare, Target, Calendar, Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
+
+interface Task {
+  id: string;
+  text: string;
+  completed: boolean;
+  type: 'goal' | 'task';
+  category: string;
+  timeframe?: string;
+}
+
+interface GoalsSidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const GoalsSidebar: React.FC<GoalsSidebarProps> = ({ isOpen, onToggle }) => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user]);
+
+  const fetchTasks = async () => {
+    try {
+      // Fetch goals from the goals table
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('goals')
+        .select('*')
+        .eq('user_id', user?.id)
+        .neq('status', 'completed');
+
+      if (goalsError) throw goalsError;
+
+      // Fetch tasks from journal entries (extracted_goals)
+      const { data: journalsData, error: journalsError } = await supabase
+        .from('journals')
+        .select('id, extracted_goals')
+        .eq('user_id', user?.id)
+        .not('extracted_goals', 'is', null);
+
+      if (journalsError) throw journalsError;
+
+      // Process goals from database
+      const dbTasks: Task[] = (goalsData || []).map(goal => ({
+        id: `goal-${goal.id}`,
+        text: goal.title || goal.description || '',
+        completed: goal.status === 'completed',
+        type: 'goal' as const,
+        category: 'personal',
+        timeframe: goal.target_frequency
+      }));
+
+      // Process tasks from journal entries
+      const journalTasks: Task[] = [];
+      (journalsData || []).forEach(journal => {
+        const extractedGoals = journal.extracted_goals as any;
+        if (extractedGoals?.detectedGoals) {
+          extractedGoals.detectedGoals.forEach((goal: any) => {
+            journalTasks.push({
+              id: `journal-goal-${journal.id}-${goal.id}`,
+              text: goal.text,
+              completed: false,
+              type: goal.type || 'goal',
+              category: goal.category || 'other',
+              timeframe: goal.timeframe
+            });
+          });
+        }
+        if (extractedGoals?.detectedTasks) {
+          extractedGoals.detectedTasks.forEach((task: any) => {
+            journalTasks.push({
+              id: `journal-task-${journal.id}-${task.id}`,
+              text: task.text,
+              completed: false,
+              type: task.type || 'task',
+              category: task.category || 'other',
+              timeframe: task.timeframe
+            });
+          });
+        }
+      });
+
+      setTasks([...dbTasks, ...journalTasks]);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load tasks",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newCompleted = !task.completed;
+    
+    // Update local state immediately
+    setTasks(prevTasks => 
+      prevTasks.map(t => 
+        t.id === taskId ? { ...t, completed: newCompleted } : t
+      )
+    );
+
+    // Update database if it's a goal from the goals table
+    if (taskId.startsWith('goal-')) {
+      const goalIdString = taskId.replace('goal-', '');
+      const goalId = parseInt(goalIdString, 10);
+      
+      if (isNaN(goalId)) {
+        console.error('Invalid goal ID:', goalIdString);
+        return;
+      }
+      
+      try {
+        const { error } = await supabase
+          .from('goals')
+          .update({ 
+            status: newCompleted ? 'completed' : 'active',
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', goalId);
+
+        if (error) throw error;
+
+        toast({
+          title: newCompleted ? "Goal Completed!" : "Goal Reopened",
+          description: newCompleted 
+            ? "Great job completing your goal!" 
+            : "Goal marked as not completed",
+        });
+      } catch (error) {
+        console.error('Error updating goal:', error);
+        // Revert local state on error
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === taskId ? { ...t, completed: !newCompleted } : t
+          )
+        );
+        toast({
+          title: "Error",
+          description: "Failed to update goal status",
+          variant: "destructive"
+        });
+      }
+    } else {
+      // For journal-extracted tasks, just show success message
+      toast({
+        title: newCompleted ? "Task Completed!" : "Task Reopened",
+        description: newCompleted 
+          ? "Great job completing your task!" 
+          : "Task marked as not completed",
+      });
+    }
+  };
+
+  const completedCount = tasks.filter(t => t.completed).length;
+  const totalCount = tasks.length;
+
+  return (
+    <>
+      {/* Sidebar */}
+      <div className={`fixed top-0 right-0 h-full bg-white shadow-lg border-l border-gray-200 z-50 transition-transform duration-300 ease-in-out ${
+        isOpen ? 'transform translate-x-0' : 'transform translate-x-full'
+      }`} style={{ width: '400px' }}>
+        <div className="h-full flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <CheckSquare className="h-5 w-5" />
+                Goals Checklist
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggle}
+                className="p-1"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            {totalCount > 0 && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                  <span>Progress</span>
+                  <span>{completedCount}/{totalCount} completed</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : '0%' }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">Loading your goals...</div>
+              </div>
+            ) : tasks.length === 0 ? (
+              <div className="text-center py-8">
+                <Target className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No goals found</p>
+                <p className="text-sm text-gray-400">Start journaling to automatically detect your goals!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <div 
+                    key={task.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
+                      task.completed 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={task.completed}
+                      onCheckedChange={() => toggleTask(task.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                        {task.text}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {task.type === 'goal' ? (
+                            <><Target className="h-3 w-3 mr-1" />Goal</>
+                          ) : (
+                            <><CheckSquare className="h-3 w-3 mr-1" />Task</>
+                          )}
+                        </Badge>
+                        {task.timeframe && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {task.timeframe}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    {task.completed && (
+                      <Trophy className="h-4 w-4 text-yellow-500 mt-1 flex-shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Toggle Button (when sidebar is closed) */}
+      {!isOpen && (
+        <Button
+          onClick={onToggle}
+          className="fixed top-1/2 right-0 transform -translate-y-1/2 bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 shadow-md z-40 rounded-l-md rounded-r-none px-2 py-3"
+          variant="outline"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      )}
+
+      {/* Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-20 z-40"
+          onClick={onToggle}
+        />
+      )}
+    </>
+  );
+};
+
+export default GoalsSidebar;

@@ -1,22 +1,28 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '@/components/Header';
 import InsightsOverview from '@/components/insights/InsightsOverview';
 import ProgressMetrics from '@/components/insights/ProgressMetrics';
 import TrendAnalysis from '@/components/insights/TrendAnalysis';
 import SentimentFeedback from '@/components/insights/SentimentFeedback';
 import GamificationPanel from '@/components/insights/GamificationPanel';
+import GoalsSidebar from '@/components/insights/GoalsSidebar';
 import { useUserStats } from '@/hooks/useUserStats';
 import { useAchievements } from '@/hooks/useAchievements';
 
 const Insights = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const userStats = useUserStats();
   const { achievements } = useAchievements(userStats);
 
   console.log('Insights component rendering', { userStats, achievements });
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <Header />
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="space-y-8">
@@ -73,6 +79,9 @@ const Insights = () => {
           </div>
         </div>
       </main>
+
+      {/* Goals Sidebar */}
+      <GoalsSidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
     </div>
   );
 };
